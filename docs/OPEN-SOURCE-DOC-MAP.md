@@ -166,12 +166,12 @@
 
 ---
 
-### 12. `docs/local-models-windows.md` — P1 · ✅
+### 12. `docs/local-models-windows.md` + `local-models-windows.zh.md` — P1 · ✅
 
 | 项 | 内容 |
 |----|------|
 | **读者** | 不用云端 API 的用户 |
-| **现有** | 涵盖：LLM vs Embedding 模型说明、Ollama/LM Studio/ooba/vLLM 配置、防火墙、已验证组合表、性能预期。118 行，内容完整 |
+| **现有** | 涵盖：LLM vs Embedding 模型说明、Ollama/LM Studio/ooba/vLLM 配置、防火墙、性能预期。中英双版已对齐 |
 
 ---
 
@@ -184,12 +184,12 @@
 
 ---
 
-### 14. `docs/perception-layer.md` — P1 · ✅
+### 14. `docs/perception-layer.md` + `perception-layer.zh.md` — P1 · ✅
 
 | 项 | 内容 |
 |----|------|
 | **读者** | 关心权限的用户 |
-| **现有** | 涵盖：6 项感知能力逐项说明（用途/数据/留存/关闭/降级）、权限管理界面、拒绝降级表 |
+| **现有** | 涵盖：8 项感知能力状态表格、设计原则、相关文档链接。中英双版已对齐 |
 
 ---
 

@@ -92,7 +92,7 @@
 
 | 文档 | 内容 |
 |------|------|
-| [perception-layer.zh.md](./perception-layer.zh.md) | 感知层权限详情 |
+| [perception-layer.zh.md](./perception-layer.zh.md) | 感知能力详情 |
 | [adult-and-safety-policy.zh.md](./adult-and-safety-policy.zh.md) | 成人模式与安全策略 |
 | [privacy-and-data.zh.md](./privacy-and-data.zh.md) | 数据处理说明 |
 | [architecture/05-extension-system.md](./developer/architecture/05-extension-system.md) | 扩展系统权限模型 |

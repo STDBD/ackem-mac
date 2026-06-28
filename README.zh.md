@@ -137,7 +137,7 @@ npm run test:renderer
 | 隐私与数据处理 | [docs/privacy-and-data.zh.md](./docs/privacy-and-data.zh.md) | [docs/privacy-and-data.md](./docs/privacy-and-data.md) |
 | 本地模型配置 | [docs/local-models-windows.zh.md](./docs/local-models-windows.zh.md) | [docs/local-models-windows.md](./docs/local-models-windows.md) |
 | 成人模式与安全策略 | [docs/adult-and-safety-policy.zh.md](./docs/adult-and-safety-policy.zh.md) | [docs/adult-and-safety-policy.md](./docs/adult-and-safety-policy.md) |
-| 感知层权限 | [docs/perception-layer.zh.md](./docs/perception-layer.zh.md) | [docs/perception-layer.md](./docs/perception-layer.md) |
+| 感知能力 | [docs/perception-layer.zh.md](./docs/perception-layer.zh.md) | [docs/perception-layer.md](./docs/perception-layer.md) |
 | 敏感能力 | [docs/sensitive-capabilities.zh.md](./docs/sensitive-capabilities.zh.md) | [docs/sensitive-capabilities.md](./docs/sensitive-capabilities.md) |
 | Windows 分发 | [docs/distribution-windows.zh.md](./docs/distribution-windows.zh.md) | [docs/distribution-windows.md](./docs/distribution-windows.md) |
 | 索引与规模 | — | [docs/indexing-and-scale.md](./docs/indexing-and-scale.md) |

@@ -137,7 +137,7 @@ Index: [docs/developer/architecture/README.md](./docs/developer/architecture/REA
 | Privacy & data handling | [docs/privacy-and-data.md](./docs/privacy-and-data.md) | [docs/privacy-and-data.zh.md](./docs/privacy-and-data.zh.md) |
 | Local models setup | [docs/local-models-windows.md](./docs/local-models-windows.md) | [docs/local-models-windows.zh.md](./docs/local-models-windows.zh.md) |
 | Adult mode & safety policy | [docs/adult-and-safety-policy.md](./docs/adult-and-safety-policy.md) | [docs/adult-and-safety-policy.zh.md](./docs/adult-and-safety-policy.zh.md) |
-| Perception layer permissions | [docs/perception-layer.md](./docs/perception-layer.md) | [docs/perception-layer.zh.md](./docs/perception-layer.zh.md) |
+| Perception capabilities | [docs/perception-layer.md](./docs/perception-layer.md) | [docs/perception-layer.zh.md](./docs/perception-layer.zh.md) |
 | Sensitive capabilities | [docs/sensitive-capabilities.md](./docs/sensitive-capabilities.md) | [docs/sensitive-capabilities.zh.md](./docs/sensitive-capabilities.zh.md) |
 | Windows distribution | [docs/distribution-windows.md](./docs/distribution-windows.md) | [docs/distribution-windows.zh.md](./docs/distribution-windows.zh.md) |
 | Indexing & scale | [docs/indexing-and-scale.md](./docs/indexing-and-scale.md) | — |
