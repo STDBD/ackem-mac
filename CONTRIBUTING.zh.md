@@ -1,5 +1,7 @@
 # 贡献指南 · Contributing Guide
 
+> **语言：** 中文 · [English](./CONTRIBUTING.md)
+
 > 欢迎为 Ackem 贡献代码、文档或反馈！
 
 ---

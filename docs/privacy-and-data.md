@@ -1,5 +1,7 @@
 # Privacy & Data
 
+> **Language:** English · [中文](./privacy-and-data.zh.md)
+
 > **Product**: Ackem v1.0.0  
 > **Principle**: Local-first. Your data stays on your machine unless you explicitly configure otherwise.
 

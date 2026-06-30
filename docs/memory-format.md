@@ -1,96 +1,98 @@
-# Ackem 数据目录格式（memory-format）
+# Data Directory Layout (memory-format)
 
-> **产品版本**：Ackem **v1.0.0**  
-> **代码依据**：`src/main/layout.ts` · `src/main/paths.ts`  
-> **原则**：本地优先；结构化数据在 `ackem.db`；人类可读 md/txt 可备份与审计。
+> **Language:** English · [中文](./memory-format.zh.md)
+
+> **Product version:** Ackem **v1.0.0**  
+> **Code:** `src/main/layout.ts` · `src/main/paths.ts`  
+> **Principle:** Local-first; structured state in `ackem.db`; human-readable md/txt for backup and audit.
 
 ---
 
-## 1. 数据根位置
+## 1. Data root location
 
-| 模式 | 路径 |
+| Mode | Path |
 |------|------|
-| **便携（绿色版默认）** | `<Ackem.exe 同级>/data/` |
-| **用户目录** | `%LOCALAPPDATA%\Ackem\` |
+| **Portable (green release default)** | `<next to Ackem.exe>/data/` |
+| **User profile** | `%LOCALAPPDATA%\Ackem\` |
 
-在应用 **设置 → 数据与备份** 可查看当前绝对路径。
+See the absolute path under **Settings → Data & backup**.
 
 ---
 
-## 2. 目录树（v1.0.0）
+## 2. Directory tree (v1.0.0)
 
 ```
 data/
-├── README.md                 # 首次启动自动生成说明
-├── ackem.db                  # SQLite：状态、扩展 registry KV 等
-├── imports/                  # 用户导入的 txt/md/json 原件
+├── README.md                 # Auto-generated on first run
+├── ackem.db                  # SQLite: state, extension registry KV, etc.
+├── imports/                  # Original txt/md/json you imported
 ├── memory/
-│   ├── facts/facts.v2.json   # 结构化事实（权威之一）
-│   └── archive/              # 导出的人类可读记忆归档 md
+│   ├── facts/facts.v2.json   # Structured facts (authoritative)
+│   └── archive/              # Human-readable memory export md
 ├── companion/
-│   ├── self.md               # 伴侣第一人称镜中记忆
-│   ├── state.md              # 伴侣快照占位
-│   └── chat-history-*.json   # 会话历史（按配置）
-├── diary/                    # 日记 md
+│   ├── self.md               # Companion first-person mirror memory
+│   ├── state.md              # Companion snapshot placeholder
+│   └── chat-history-*.json   # Session history (per config)
+├── diary/                    # Diary markdown files
 ├── openforu/
-│   ├── uskills/              # 用户 Skill（u/）
-│   ├── uplugins/             # 用户 Plugin（u/）
-│   ├── sessions/             # Plan 工作区
-│   └── staging/              # 部署暂存
-├── extensions/               # 扩展 registry 镜像（skills/plugins）
-├── _derived/                 # 派生索引（可删，应用可重建）
-├── models/                   # 用户侧 embedding 模型缓存
-├── logs/                     # 运行日志
-├── preferences/              # 偏好
-├── portrait/                 # 肖像相关
-├── staging/                  # 引擎/扩展白名单暂存
-├── weather/                  # 天气缓存
-└── packs/                    # Persona Pack 预留
+│   ├── uskills/              # User Skills (u/)
+│   ├── uplugins/             # User Plugins (u/)
+│   ├── sessions/             # Plan workspaces
+│   └── staging/              # Deploy staging
+├── extensions/               # Extension registry mirror (skills/plugins)
+├── _derived/                 # Derived indexes (safe to delete; app rebuilds)
+├── models/                   # User-side embedding model cache
+├── logs/                     # Runtime logs
+├── preferences/              # Preferences
+├── portrait/                 # Portrait-related data
+├── staging/                  # Engine/extension whitelisted staging
+├── weather/                  # Weather cache
+└── packs/                    # Persona pack (reserved)
 ```
 
-`community/` 市场扩展目录（`extensions/community/`）在 v1.0.0 **未启用**（`COMMUNITY_EXTENSIONS_OPEN=false`）。
+The `community/` marketplace path (`extensions/community/`) is **disabled** in v1.0.0 (`COMMUNITY_EXTENSIONS_OPEN=false`).
 
 ---
 
-## 3. 权威 vs 派生
+## 3. Authoritative vs derived
 
-| 类型 | 路径 | 说明 |
-|------|------|------|
-| **权威** | `imports/`、`memory/` 下 md/json、`companion/`、`diary/` | 备份必含 |
-| **权威** | `ackem.db` | 关系/情绪/注册表等；备份建议含 |
-| **派生** | `_derived/`、`data/models/` 部分缓存 | 删除后变慢，不丢核心记忆 |
+| Type | Paths | Notes |
+|------|-------|-------|
+| **Authoritative** | `imports/`, md/json under `memory/`, `companion/`, `diary/` | Include in backups |
+| **Authoritative** | `ackem.db` | Relationship/emotion/registry; backup recommended |
+| **Derived** | `_derived/`, parts of `data/models/` cache | Deleting slows search; core memory remains |
 
-设置中的 **重建索引** 会刷新派生层。
+**Rebuild index** in Settings refreshes the derived layer.
 
 ---
 
-## 4. AI 写入白名单（摘要）
+## 4. AI write allowlist (summary)
 
-引擎与扩展 **不得** 随意写入用户整个磁盘。允许写入范围由代码白名单控制，主要包括：
+The engine and extensions **cannot** write arbitrary paths on disk. Allowed writes are code-controlled, mainly:
 
-- `data/memory/`、`data/diary/`、`data/companion/`（引擎记忆管线）
-- `data/openforu/`（用户扩展）
-- `data/staging/`、`data/extensions/`（扩展暂存与 registry）
+- `data/memory/`, `data/diary/`, `data/companion/` (memory pipeline)
+- `data/openforu/` (user extensions)
+- `data/staging/`, `data/extensions/` (extension staging & registry)
 - `data/logs/`
 
-扩展协议详见 [developer/DEVELOPER-EXTENSION-PROTOCOL.md](./developer/DEVELOPER-EXTENSION-PROTOCOL.md)。
+See [DEVELOPER-EXTENSION-PROTOCOL.md](./developer/DEVELOPER-EXTENSION-PROTOCOL.md).
 
 ---
 
-## 5. 备份与迁移
+## 5. Backup & migration
 
-1. **完全退出** Ackem（含托盘）  
-2. 拷贝整棵 `data/` 到新机器同路径（便携）或在新安装后替换用户目录  
-3. 不要分享含私人对话的 `data/` zip  
+1. **Fully quit** Ackem (including tray)  
+2. Copy the entire `data/` tree to the same relative path on the new machine (portable) or replace the user profile folder after install  
+3. Never share a zip containing private conversations  
 
-官方安装包 **从不包含** 你的 `data/`。
+Official installers **never include** your `data/`.
 
 ---
 
-## 6. 相关文档
+## 6. Related docs
 
 - [distribution-windows.md](./distribution-windows.md)  
 - [CODEBASE-PATHS.md](./CODEBASE-PATHS.md)  
-- 待写：`ai-context-and-retrieval-policy.md`（记忆如何注入 LLM）
+- [ai-context-and-retrieval-policy.md](./ai-context-and-retrieval-policy.md) — how memory enters the LLM  
 
 *memory-format · Ackem v1.0.0*

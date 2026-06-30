@@ -1,178 +1,180 @@
-# Ackem 开发者扩展接口协议（Ecosystem v1）
+# Ackem Developer Extension Protocol (Ecosystem v1)
 
-> **版本**：引擎 API `1.0.0`  
-> **读者**：Ackem 贡献者、扩展开发者  
-> **当前产品策略（2026-06）**：**仅开放 `ackem/`（官方）与 `u/`（本机 OpenForU）**；`community/` 市场管线 **已关闭**，代码保留供日后开放。
+> **Language:** English · [中文](./DEVELOPER-EXTENSION-PROTOCOL.zh.md)
+
+> **Version:** Engine API `1.0.0`  
+> **Audience:** Ackem contributors and extension developers  
+> **Product policy (2026-06):** Only **`ackem/` (official)** and **`u/` (local OpenForU)** are open; the **`community/`** marketplace pipeline is **closed** — code remains for future use.
 
 ---
 
-## 1. 概述
+## 1. Overview
 
-Ackem 扩展采用 **本地优先 + 命名空间分轨** 模型：
+Ackem extensions use a **local-first + namespace-track** model:
 
-| 命名空间 | ID 示例 | 状态 | 说明 |
+| Namespace | ID example | Status | Notes |
 |----------|---------|------|------|
-| `ackem/` | `ackem/web-search@1.0.0` | **开放** | 官方内置，随应用分发 |
-| `u/` | `u/my-timer@1.0.0` | **开放** | 用户 Plan 共创，本机私有 |
-| `community/` | `community/hello@1.0.0` | **关闭** | 签名市场包；`COMMUNITY_EXTENSIONS_OPEN=false` |
+| `ackem/` | `ackem/web-search@1.0.0` | **Open** | Official built-ins shipped with the app |
+| `u/` | `u/my-timer@1.0.0` | **Open** | User Plan co-creation, local/private |
+| `community/` | `community/hello@1.0.0` | **Closed** | Signed marketplace packages; `COMMUNITY_EXTENSIONS_OPEN=false` |
 
-扩展与引擎的 **唯一桥梁** 是 `ExtensionsCoordinator`（`src/main/extensions/coordinator.ts`）。  
-扩展 **禁止** 直接 `import` 引擎 `memory/`、`engine/` 内部模块；只能使用 `protocols.ts` 定义的接口。
+The **only bridge** between extensions and the engine is `ExtensionsCoordinator` (`src/main/extensions/coordinator.ts`).  
+Extensions **must not** directly `import` internal `memory/` or `engine/` modules; they may only use interfaces defined in `protocols.ts`.
 
 ```
-用户消息 / 定时 / 系统事件
+User message / schedule / system event
         │
         ▼
-  Dispatch 调度层
+  Dispatch layer
         │
-        ├── ackem/*   官方 Skill/Plugin（开放）
-        ├── u/*       OpenForU 用户扩展（开放）
-        └── community/*  已关闭 — 启动时不扫描、不安装
+        ├── ackem/*   Official Skill/Plugin (open)
+        ├── u/*       OpenForU user extensions (open)
+        └── community/*  Closed — not scanned or installed at boot
         │
         ▼
-  Skill.execute / Plugin hooks / Surface → ExtensionEvent → 引擎上下文
+  Skill.execute / Plugin hooks / Surface → ExtensionEvent → engine context
 ```
 
-**贡献者路径（当前推荐）**：
+**Contributor path (recommended today):**
 
-1. 本机用 **OpenForU Plan** 部署 `u/` 扩展试验  
-2. 满意后整理代码，**PR 到 Ackem 仓库** `skills/builtin/` 或 `plugins/builtin/`  
-3. 合并后 id 改为 `ackem/<name>@<version>`，随下一版发行包分发给所有用户  
+1. Prototype locally with **OpenForU Plan** as `u/` extensions  
+2. When stable, clean up code and **PR to Ackem** under `skills/builtin/` or `plugins/builtin/`  
+3. After merge, id becomes `ackem/<name>@<version>` and ships in the next release  
 
 ---
 
-## 2. 贡献者指南（Contributing Extensions）
+## 2. Contributing Extensions
 
-### 2.1 本地原型（OpenForU · `u/`）
+### 2.1 Local prototype (OpenForU · `u/`)
 
-- 聊天中说「帮我做一个 XX Skill/插件」→ Plan 工作区 → 确认部署  
-- 落盘：`{dataRoot}/openforu/uskills/` 或 `uplugins/`  
-- 协议：[`src/main/extensions/openforu/PROTOCOL.md`](../../src/main/extensions/openforu/PROTOCOL.md)
+- In chat: “Help me build an XX Skill/plugin” → Plan workspace → confirm deploy  
+- On disk: `{dataRoot}/openforu/uskills/` or `uplugins/`  
+- Protocol: [`src/main/extensions/openforu/PROTOCOL.md`](../../src/main/extensions/openforu/PROTOCOL.md)
 
-### 2.2 提交官方（`ackem/`）
+### 2.2 Submit as official (`ackem/`)
 
-| 类型 | 目标目录 | manifest id 示例 |
+| Type | Target directory | manifest id example |
 |------|----------|------------------|
 | Skill | `src/main/extensions/skills/builtin/<category>/<name>/` | `ackem/web-search@1.0.0` |
 | Plugin | `src/main/extensions/plugins/builtin/<category>/<name>/` | `ackem/knowledge-presentation@1.0.0` |
 
-**PR 检查清单**：
+**PR checklist:**
 
-- [ ] `manifest.json` 含完整 `dispatch`（否则不进调度 catalog）  
-- [ ] `engineVersion: ">=0.0.0 <1.0.0"`（或与当前发行版对齐）  
-- [ ] `engineApiVersion: "^1.0.0"`（建议显式填写）  
-- [ ] `implementationStatus: "complete"`（勿标 complete 若仅为 stub）  
-- [ ] 在 `register-placeholders.ts` 或对应 `register.ts` 注册  
-- [ ] 聚焦测试：`vitest run src/main/extensions/...`  
-- [ ] 不打包用户 `data/`、不含密钥  
+- [ ] `manifest.json` includes full `dispatch` (otherwise excluded from dispatch catalog)  
+- [ ] `engineVersion: ">=0.0.0 <1.0.0"` (or aligned with current release)  
+- [ ] `engineApiVersion: "^1.0.0"` (recommended explicit)  
+- [ ] `implementationStatus: "complete"` (do not mark complete if stub only)  
+- [ ] Registered in `register-placeholders.ts` or corresponding `register.ts`  
+- [ ] Focused tests: `vitest run src/main/extensions/...`  
+- [ ] No user `data/` bundled, no secrets  
 
-**id 迁移**：OpenForU 的 `u/my-feature@1.0.0` → 官方 `ackem/my-feature@1.0.0`（scope 与权限集可能需调整）。
+**ID migration:** OpenForU `u/my-feature@1.0.0` → official `ackem/my-feature@1.0.0` (scope and permissions may need adjustment).
 
-### 2.3 仓库与许可
+### 2.3 Repository and license
 
-- 仓库：<https://github.com/JasonLiu0826/Ackem>  
-- 维护者：Jason（JasonLiu0826）· 商业授权：jasonliu_lyf_2005@qq.com  
-- 官方扩展默认 **AGPL-3.0**（与项目一致）  
-- 安全问题见根目录 `SECURITY.md`  
+- Repository: <https://github.com/JasonLiu0826/Ackem>  
+- Maintainer: Jason (JasonLiu0826) · Commercial licensing: jasonliu_lyf_2005@qq.com  
+- Official extensions default to **AGPL-3.0** (same as the project)  
+- Security issues: root `SECURITY.md`  
 
 ---
 
-## 3. 扩展 ID 规范
+## 3. Extension ID Format
 
 ```
 {scope}/{name}@{semver}
 ```
 
-- **scope**：当前产品启用 `ackem` · `u`；`community` 保留于协议，**运行时关闭**  
-- **name**：`[a-z0-9_-]+`  
-- 解析 API：`src/main/extensions/ecosystem/extensionId.ts`
+- **scope:** Product enables `ackem` · `u`; `community` remains in protocol but is **closed at runtime**  
+- **name:** `[a-z0-9_-]+`  
+- Parsing API: `src/main/extensions/ecosystem/extensionId.ts`
 
 ---
 
-## 4. 双版本字段
+## 4. Dual Version Fields
 
-| 字段 | 含义 | 示例 | 必填 |
+| Field | Meaning | Example | Required |
 |------|------|------|------|
-| `engineVersion` | Ackem **应用** semver range | `>=0.0.0 <1.0.0` | 全部 |
-| `engineApiVersion` | **扩展接口协议** semver range | `^1.0.0` | 建议全部填写 |
+| `engineVersion` | Ackem **app** semver range | `>=0.0.0 <1.0.0` | All |
+| `engineApiVersion` | **Extension protocol** semver range | `^1.0.0` | Recommended for all |
 
-宿主常量（`ecosystem/constants.ts`）：
+Host constants (`ecosystem/constants.ts`):
 
 - `ACKEM_APP_VERSION` = `0.0.0`  
 - `ACKEM_ENGINE_API_VERSION` = `1.0.0`  
 
-校验：`ecosystem/manifestValidate.ts`
+Validation: `ecosystem/manifestValidate.ts`
 
 ---
 
-## 5. 引擎接口（扩展 ↔ 引擎）
+## 5. Engine Interface (Extension ↔ Engine)
 
-定义于 `src/main/extensions/protocols.ts`：
+Defined in `src/main/extensions/protocols.ts`:
 
-- **EngineSnapshot** — 只读引擎状态  
-- **ExtensionEvent** — 扩展回传（含 `contextInjection`）  
-- **ExtensionLifecycleHooks** — Plugin 生命周期  
-- **DispatchConfig** — 进入聊天调度的必要条件  
+- **EngineSnapshot** — read-only engine state  
+- **ExtensionEvent** — extension feedback (includes `contextInjection`)  
+- **ExtensionLifecycleHooks** — Plugin lifecycle  
+- **DispatchConfig** — required to enter chat dispatch catalog  
 
 ---
 
-## 6. `community/` 说明（已关闭，协议保留）
+## 6. `community/` (Closed — Protocol Retained)
 
-> **开关**：`src/shared/communityExtensionFeature.ts` → `COMMUNITY_EXTENSIONS_OPEN = false`
+> **Switch:** `src/shared/communityExtensionFeature.ts` → `COMMUNITY_EXTENSIONS_OPEN = false`
 
-关闭时的行为：
+When closed:
 
-- `coordinator.boot()` **不**调用 `community.boot()`  
-- `installCommunityPackage()` 返回「社区扩展市场暂未开放…」  
-- 已落盘的 `data/extensions/community/` **不会被加载**  
+- `coordinator.boot()` does **not** call `community.boot()`  
+- `installCommunityPackage()` returns “Community extension marketplace is not open yet…”  
+- Existing `data/extensions/community/` on disk is **not loaded**  
 
-保留的实现（供日后开放，单测仍覆盖）：
+Retained implementation (for future open; still covered by unit tests):
 
-| 模块 | 路径 |
+| Module | Path |
 |------|------|
-| 签名 / 包格式 | `ecosystem/signature.ts` · `packageFormat.ts` |
-| 安装 | `ecosystem/install.ts` |
-| 加载器 | `ecosystem/communityLoader.ts` |
-| 信任库 | `data/extensions/trust/publishers.json` |
+| Signature / package format | `ecosystem/signature.ts` · `packageFormat.ts` |
+| Install | `ecosystem/install.ts` |
+| Loader | `ecosystem/communityLoader.ts` |
+| Trust store | `data/extensions/trust/publishers.json` |
 
-**请勿**在当前版本面向用户宣传 community 市场或 `.ackem-ext` 安装；贡献请走 §2 PR 路径。
+**Do not** promote community marketplace or `.ackem-ext` install to users in the current version; use §2 PR path instead.
 
 ---
 
-## 7. OpenForU（`u/`）速查
+## 7. OpenForU (`u/`) Quick Reference
 
-| 项目 | 说明 |
+| Item | Notes |
 |------|------|
-| 路径 | `{dataRoot}/openforu/uskills/` · `uplugins/` |
-| uskill | 配置 + context 注入（v1 非任意 TS 执行） |
-| uplugin | 沙箱 + 权限审批 + 可选 Surface |
-| 文档 | [`openforu/PROTOCOL.md`](../../src/main/extensions/openforu/PROTOCOL.md) |
+| Paths | `{dataRoot}/openforu/uskills/` · `uplugins/` |
+| uskill | Config + context injection (v1 — not arbitrary TS execution) |
+| uplugin | Sandbox + permission approval + optional Surface |
+| Docs | [`openforu/PROTOCOL.md`](../../src/main/extensions/openforu/PROTOCOL.md) |
 
 ---
 
-## 8. 测试
+## 8. Testing
 
 ```bash
-# 生态协议（含 community 关闭态单测）
+# Ecosystem protocol (includes community-closed unit tests)
 npm test -- src/main/extensions/ecosystem/
 
-# 扩展调度
+# Extension dispatch
 npm test -- src/main/extensions/dispatch/
 ```
 
 ---
 
-## 9. 参考路径
+## 9. Reference Paths
 
-| 功能 | 源文件 |
+| Feature | Source |
 |------|--------|
-| 协调器 | `src/main/extensions/coordinator.ts` |
-| community 开关 | `src/shared/communityExtensionFeature.ts` |
-| 协议类型 | `src/main/extensions/protocols.ts` |
+| Coordinator | `src/main/extensions/coordinator.ts` |
+| Community switch | `src/shared/communityExtensionFeature.ts` |
+| Protocol types | `src/main/extensions/protocols.ts` |
 | OpenForU | `src/main/extensions/openforu/` |
-| 官方 Skill 例题 | `src/main/extensions/skills/builtin/tool/web-search/` |
-| 官方 Plugin 例题 | `src/main/extensions/plugins/builtin/knowledge-presentation/` |
+| Official Skill example | `src/main/extensions/skills/builtin/tool/web-search/` |
+| Official Plugin example | `src/main/extensions/plugins/builtin/knowledge-presentation/` |
 
 ---
 
-*Ackem Ecosystem Protocol v1.0.0 · 贡献者优先 PR 至 ackem/ · 2026-06*
+*Ackem Ecosystem Protocol v1.0.0 · Contributors: PR to ackem/ first · 2026-06*

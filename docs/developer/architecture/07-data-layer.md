@@ -1,89 +1,91 @@
-# 数据层 · Data Layer
+# Data Layer
 
-> **层级**：持久化层  
-> **代号**：Data Engine  
-> **核心问题**：Ackem 的数据如何存储、组织与迁移？
+> **Language:** English · [中文](./07-data-layer.zh.md)
+
+> **Layer:** Persistence  
+> **Codename:** Data Engine  
+> **Core question:** How is Ackem data stored, organized, and migrated?
 
 ---
 
-## 1. 设计原则
+## 1. Design Principles
 
-Ackem 采用 **SQLite 为主 + JSON/Markdown 并存** 的混合持久化策略：
+Ackem uses a **SQLite-first + JSON/Markdown coexistence** hybrid persistence strategy:
 
-| 存储 | 存什么 | 理由 |
+| Storage | What it holds | Rationale |
 |------|--------|------|
-| **SQLite** (`ackem.db`) | 结构化状态、记忆事实、索引、扩展注册 | 事务性写入、高效查询、FTS5 全文搜索 |
-| **JSON 文件** (`facts.v2.json`) | 记忆事实快照（向后兼容层） | 人类可读、Git 可 diff、可直接备份 |
-| **Markdown 文件** (`*.md`) | 日记、伴侣状态 | 用户可直接阅读编辑 |
+| **SQLite** (`ackem.db`) | Structured state, memory facts, indexes, extension registry | Transactional writes, efficient queries, FTS5 full-text search |
+| **JSON files** (`facts.v2.json`) | Memory fact snapshots (backward-compatibility layer) | Human-readable, Git-diffable, directly backup-able |
+| **Markdown files** (`*.md`) | Diary, companion state | User can read and edit directly |
 
 ```
                     ┌──────────────────┐
-                    │   ackem.db        │ ← 主要存储
+                    │   ackem.db        │ ← Primary storage
                     │   (SQLite + FTS5) │
                     └────────┬─────────┘
-                             │ 读写
+                             │ read/write
             ┌────────────────┼────────────────┐
             │                │                │
        ┌────┴────┐    ┌─────┴─────┐    ┌─────┴─────┐
        │ facts   │    │ diary/*.md │    │ companion │
        │ .v2.json│    │ Markdown   │    │ self.md   │
        └─────────┘    └───────────┘    └───────────┘
-        向后兼容          并存镜像          并存镜像
+        backward compat   coexisting mirror   coexisting mirror
 ```
 
 ---
 
-## 2. 数据库连接管理
+## 2. Database Connection Management
 
-**文件**：`src/main/db/database.ts`
+**File:** `src/main/db/database.ts`
 
-单例池模式，按 `dataRoot` 路径键控：
+Singleton pool pattern, keyed by `dataRoot` path:
 
 ```
 pools = Map<string, Database>
              │
      getDatabase(dataRoot)
          │
-     ├── 检查 sqliteEnabled() → 若禁用返回 null
-     ├── 检查 pools 缓存
-     ├── 创建目录 + new Database(path)
+     ├── check sqliteEnabled() → return null if disabled
+     ├── check pools cache
+     ├── create directory + new Database(path)
      ├── applyPragmas()
      │     ├── journal_mode = WAL
      │     ├── synchronous = NORMAL
      │     ├── foreign_keys = ON
      │     ├── busy_timeout = 5000
      │     └── cache_size = -8000 (8MB)
-     ├── runMigrations(db) → 依次应用 schema V1..V10
-     ├── 缓存到 pools
-     └── importLegacy(dataRoot) → 一次性遗留数据导入
+     ├── runMigrations(db) → apply schema V1..V10 in order
+     ├── cache in pools
+     └── importLegacy(dataRoot) → one-time legacy data import
 ```
 
-**生命周期函数**：
+**Lifecycle functions:**
 
-| 函数 | 用途 |
+| Function | Purpose |
 |------|------|
-| `getDatabase(dataRoot)` | 惰性初始化连接 |
-| `closeDatabase(dataRoot)` | 正常关闭 + WAL checkpoint |
-| `closeAllDatabases()` | 全部关闭 |
-| `withTransaction(dataRoot, fn)` | 事务包装器 |
-| `clearStructuredData(dataRoot)` | 清空所有表（保留 schema_meta） |
+| `getDatabase(dataRoot)` | Lazy connection initialization |
+| `closeDatabase(dataRoot)` | Graceful shutdown + WAL checkpoint |
+| `closeAllDatabases()` | Close all connections |
+| `withTransaction(dataRoot, fn)` | Transaction wrapper |
+| `clearStructuredData(dataRoot)` | Clear all tables (retain schema_meta) |
 
-SQLite 可通过环境变量禁用：`ACKEM_DISABLE_SQLITE=1`，此时回落 JSON 文件路径。
+SQLite can be disabled via environment variable: `ACKEM_DISABLE_SQLITE=1`, in which case the system falls back to JSON file paths.
 
 ---
 
-## 3. 完整 Schema（V10，共 18 表）
+## 3. Complete Schema (V10, 18 tables)
 
-按迁移版本顺序列出：
+Listed in migration version order:
 
-### V1 – 基础表
+### V1 – Base Tables
 
 #### `schema_meta`
 ```
 key         TEXT PRIMARY KEY
 value       TEXT NOT NULL
 ```
-存储 `user_version` 迁移版本号。
+Stores the `user_version` migration version number.
 
 #### `companion_state`
 ```
@@ -91,9 +93,9 @@ session_id     TEXT NOT NULL PRIMARY KEY
 version        TEXT NOT NULL
 state_json     TEXT NOT NULL
 updated_at     TEXT NOT NULL
-emergence_json TEXT              -- V7 追加
+emergence_json TEXT              -- added in V7
 ```
-引擎完整状态（FullState）序列化。
+Serialized full engine state (FullState).
 
 #### `chat_history`
 ```
@@ -101,7 +103,7 @@ session_id  TEXT NOT NULL PRIMARY KEY
 rows_json   TEXT NOT NULL
 updated_at  TEXT NOT NULL
 ```
-每会话最多 2000 条消息，写入时自动裁剪。
+Up to 2000 messages per session; automatically trimmed on write.
 
 #### `memory_facts`
 ```
@@ -125,15 +127,15 @@ updated_at          TEXT NOT NULL
 derived_from        TEXT             -- JSON factId[]
 fact_layer          TEXT DEFAULT 'raw'
 tier                TEXT DEFAULT 'archival'
-sensitivity         TEXT DEFAULT 'normal'      -- V4 追加
-age_value           INTEGER                    -- V5 追加
-age_birth_year      INTEGER                    -- V5 追加
-age_birthday_mmdd   TEXT                       -- V5 追加
-age_recorded_at     TEXT                       -- V5 追加
-age_is_estimate     INTEGER DEFAULT 0          -- V5 追加
-privacy_level       TEXT DEFAULT 'normal'      -- V10 追加
+sensitivity         TEXT DEFAULT 'normal'      -- added in V4
+age_value           INTEGER                    -- added in V5
+age_birth_year      INTEGER                    -- added in V5
+age_birthday_mmdd   TEXT                       -- added in V5
+age_recorded_at     TEXT                       -- added in V5
+age_is_estimate     INTEGER DEFAULT 0          -- added in V5
+privacy_level       TEXT DEFAULT 'normal'      -- added in V10
 ```
-索引：`idx_facts_status`, `idx_facts_domain`, `idx_facts_session`, `idx_facts_sensitivity`, `idx_facts_privacy_level`
+Indexes: `idx_facts_status`, `idx_facts_domain`, `idx_facts_session`, `idx_facts_sensitivity`, `idx_facts_privacy_level`
 
 #### `episodes`
 ```
@@ -164,9 +166,9 @@ value       TEXT NOT NULL
 updated_at  TEXT NOT NULL
 PRIMARY KEY (namespace, key)
 ```
-通用键值存储，用于 registry 缓存、corpus hash 等。
+Generic key-value store for registry cache, corpus hash, etc.
 
-### V2 – 知识、跟踪、日记、扩展、FTS
+### V2 – Knowledge, Traces, Diary, Extensions, FTS
 
 #### `knowledge_triples`
 ```
@@ -178,7 +180,7 @@ confidence      REAL NOT NULL
 source_fact_ids TEXT NOT NULL    -- JSON factId[]
 created_at      TEXT NOT NULL
 ```
-知识图谱 SPO 三元组。
+Knowledge graph SPO triples.
 
 #### `turn_traces`
 ```
@@ -189,7 +191,7 @@ turn_index  INTEGER NOT NULL DEFAULT 0
 trace_json  TEXT NOT NULL
 timestamp   TEXT NOT NULL
 ```
-每轮决策 trace。
+Per-turn decision traces.
 
 #### `diary`
 ```
@@ -200,7 +202,7 @@ updated_at  TEXT NOT NULL
 ```
 
 #### `openforu_workspaces` / `openforu_sessions` / `openforu_runs`
-三个表存储 OpenForU 工作区、会话、运行记录。
+Three tables storing OpenForU workspaces, sessions, and run records.
 
 #### `shared_events`
 ```
@@ -210,25 +212,25 @@ event_json  TEXT NOT NULL
 created_at  TEXT NOT NULL
 ```
 
-#### `memory_facts_fts`（FTS5 虚拟表）
+#### `memory_facts_fts` (FTS5 virtual table)
 ```
 fact_id        UNINDEXED
 subject
 summary
 triggers_text
 ```
-分词器：`tokenize='unicode61'`
+Tokenizer: `tokenize='unicode61'`
 
-#### `episodes_fts`（FTS5 虚拟表）
+#### `episodes_fts` (FTS5 virtual table)
 ```
 episode_id       UNINDEXED
 summary
 keywords_text
 dominant_emotion
 ```
-分词器：`tokenize='unicode61'`
+Tokenizer: `tokenize='unicode61'`
 
-### V4 – 关联与时间锚点
+### V4 – Associations and Temporal Anchors
 
 #### `memory_associations`
 ```
@@ -242,7 +244,7 @@ last_activated_at TEXT
 FOREIGN KEY (fact_id_a) REFERENCES memory_facts(id)
 FOREIGN KEY (fact_id_b) REFERENCES memory_facts(id)
 ```
-索引：`idx_assoc_a`, `idx_assoc_b`, `idx_assoc_strength`
+Indexes: `idx_assoc_a`, `idx_assoc_b`, `idx_assoc_strength`
 
 #### `temporal_anchors`
 ```
@@ -259,7 +261,7 @@ created_at          TEXT NOT NULL
 last_triggered_at   TEXT
 ```
 
-### V6 – 习惯与策略日志
+### V6 – Habits and Policy Logs
 
 #### `user_habits`
 ```
@@ -281,9 +283,9 @@ updated_at        INTEGER NOT NULL
 ```
 
 #### `foreground_history` / `decision_log`
-前台窗口历史与策略决策日志。
+Foreground window history and policy decision logs.
 
-### V8 – 向量索引
+### V8 – Vector Index
 
 #### `fact_embeddings`
 ```
@@ -291,119 +293,119 @@ fact_id     TEXT NOT NULL
 model_sig   TEXT NOT NULL
 dim         INTEGER NOT NULL
 updated_at  TEXT NOT NULL
-vector      BLOB NOT NULL          -- float32 LE 序列化
+vector      BLOB NOT NULL          -- float32 LE serialized
 PRIMARY KEY (fact_id, model_sig)
 ```
-每模型隔离，支持多模型切换。
+Per-model isolation; supports switching between multiple models.
 
-### V9 – 微信桥接
+### V9 – WeChat Bridge
 
 #### `weixin_account` / `weixin_sync` / `weixin_context` / `weixin_seen`
-微信通道的状态同步表。
+State synchronization tables for the WeChat channel.
 
 ---
 
-## 4. Repository 模式
+## 4. Repository Pattern
 
-每个仓库是一个独立模块，导出自由函数，首参为 `dataRoot`（内部调用 `getDatabase`）。**无类、无基类**。
+Each repository is a standalone module exporting free functions; the first parameter is `dataRoot` (internally calls `getDatabase`). **No classes, no base class.**
 
-### 文件清单
+### File Inventory
 
-| 仓库 | 路径 | 职责 |
+| Repository | Path | Responsibility |
 |------|------|------|
-| `memoryFacts` | `db/repos/memoryFacts.ts` | 事实 CRUD + 年龄元数据 |
-| `episodes` | `db/repos/episodes.ts` | 情节 CRUD |
-| `knowledgeTriples` | `db/repos/knowledgeTriples.ts` | 三元组 CRUD |
-| `chatHistory` | `db/repos/chatHistory.ts` | 聊天历史读写（上限 2000 条） |
-| `companionState` | `db/repos/companionState.ts` | 引擎状态读写 |
-| `diary` | `db/repos/diary.ts` | 日记日期键控读写 |
-| `kv` | `db/repos/kv.ts` | 通用键值存储 |
-| `openforu` | `db/repos/openforu.ts` | 工作区/会话/运行 |
-| `turnTraces` | `db/repos/turnTraces.ts` | Trace 追加与查询 |
-| `proceduralHabits` | `db/repos/proceduralHabits.ts` | 程序性习惯 |
-| `fts` | `db/repos/fts.ts` | FTS5 重建 + 增量索引 + 搜索 |
-| `factEmbeddingsRepo` | `db/repos/factEmbeddingsRepo.ts` | 向量嵌入持久化 |
+| `memoryFacts` | `db/repos/memoryFacts.ts` | Fact CRUD + age metadata |
+| `episodes` | `db/repos/episodes.ts` | Episode CRUD |
+| `knowledgeTriples` | `db/repos/knowledgeTriples.ts` | Triple CRUD |
+| `chatHistory` | `db/repos/chatHistory.ts` | Chat history read/write (2000-row cap) |
+| `companionState` | `db/repos/companionState.ts` | Engine state read/write |
+| `diary` | `db/repos/diary.ts` | Date-keyed diary read/write |
+| `kv` | `db/repos/kv.ts` | Generic key-value store |
+| `openforu` | `db/repos/openforu.ts` | Workspaces / sessions / runs |
+| `turnTraces` | `db/repos/turnTraces.ts` | Trace append and query |
+| `proceduralHabits` | `db/repos/proceduralHabits.ts` | Procedural habits |
+| `fts` | `db/repos/fts.ts` | FTS5 rebuild + incremental indexing + search |
+| `factEmbeddingsRepo` | `db/repos/factEmbeddingsRepo.ts` | Vector embedding persistence |
 
-### 核心仓库接口
+### Core Repository Interfaces
 
-**memoryFacts.ts**：
+**memoryFacts.ts:**
 
-| 方法 | 说明 |
+| Method | Description |
 |------|------|
-| `loadFactsFromDb(dataRoot)` | 全量加载为 `MemoryFact[]` |
-| `replaceFactsInDb(dataRoot, facts)` | 事务：清空 + 批量插入 + FTS 重建 |
-| `insertFact(dataRoot, fact)` | 单行插入 + FTS 增量索引 |
-| `updateFactInDb(dataRoot, fact)` | 按 ID 更新 + FTS 增量索引 |
-| `deleteFactFromDb(dataRoot, id)` | 按 ID 删除 + FTS 增量索引 |
+| `loadFactsFromDb(dataRoot)` | Load all facts as `MemoryFact[]` |
+| `replaceFactsInDb(dataRoot, facts)` | Transaction: clear + batch insert + FTS rebuild |
+| `insertFact(dataRoot, fact)` | Single-row insert + FTS incremental index |
+| `updateFactInDb(dataRoot, fact)` | Update by ID + FTS incremental index |
+| `deleteFactFromDb(dataRoot, id)` | Delete by ID + FTS incremental index |
 
-**fts.ts** — FTS5 搜索包装器：
+**fts.ts** — FTS5 search wrapper:
 
 ```typescript
-// 搜索策略：拆分查询为 tokens → 过滤 <2 字符 → 双引号转义 → OR 连接
-// → MATCH 查询 → 出错降级 LIKE '%query%'
+// Search strategy: split query into tokens → filter <2 chars → escape double quotes → OR join
+// → MATCH query → on error fall back to LIKE '%query%'
 searchFactIdsFts(dataRoot, query, limit)  →  MemoryFact[]
 searchEpisodeIdsFts(dataRoot, query, limit) →  Episode[]
 ```
 
-**factEmbeddingsRepo.ts** — 向量持久化：
+**factEmbeddingsRepo.ts** — vector persistence:
 
 ```typescript
-computeCorpusHash(facts)       →  DJB2 哈希（检测事实变更）
+computeCorpusHash(facts)       →  DJB2 hash (detect fact changes)
 loadFactEmbeddings(db, modelSig) →  Map<fact_id, number[]>
-upsertFactEmbeddings(db, sig, entries) →  float32 LE BLOB 批量写入
-deleteStaleFactEmbeddings(db, sig, activeIds) → 清理过期向量
+upsertFactEmbeddings(db, sig, entries) →  float32 LE BLOB batch write
+deleteStaleFactEmbeddings(db, sig, activeIds) → clean up stale vectors
 ```
 
 ---
 
-## 5. 迁移策略
+## 5. Migration Strategy
 
-迁移在 `database.ts` 的 `runMigrations(db)` 中线性执行：
+Migrations run linearly in `runMigrations(db)` within `database.ts`:
 
 ```
-1. 始终创建 schema_meta 表 + 写入 user_version=1
-2. 读取当前 user_version
-3. 对每个版本 2..N：若 current < N，执行 SCHEMA_VN_SQL → user_version = N
+1. Always create schema_meta table + write user_version=1
+2. Read current user_version
+3. For each version 2..N: if current < N, execute SCHEMA_VN_SQL → user_version = N
 ```
 
-**当前最新版本**：V10（2026-06-28）
+**Current latest version:** V10 (2026-06-28)
 
-| 版本 | 变更 |
+| Version | Changes |
 |------|------|
-| V1 | 基础表：companion_state, chat_history, memory_facts, episodes, procedural_habits, kv_store |
-| V2 | knowledge_triples, turn_traces, diary, openforu_*, shared_events, FTS5 表 |
-| V3 | 空 DDL（标记代码层增量写操作的起点） |
+| V1 | Base tables: companion_state, chat_history, memory_facts, episodes, procedural_habits, kv_store |
+| V2 | knowledge_triples, turn_traces, diary, openforu_*, shared_events, FTS5 tables |
+| V3 | Empty DDL (marks the start of code-layer incremental writes) |
 | V4 | memory_associations, temporal_anchors, memory_facts.sensitivity |
-| V5 | memory_facts.age_* 列（生日/年龄元数据） |
+| V5 | memory_facts.age_* columns (birthday/age metadata) |
 | V6 | user_habits, foreground_history, decision_log |
 | V7 | companion_state.emergence_json |
 | V8 | fact_embeddings |
-| V9 | weixin_* 表 |
+| V9 | weixin_* tables |
 | V10 | memory_facts.privacy_level |
 
-无向下迁移。版本严格递增。
+No downward migrations. Versions strictly increment.
 
 ---
 
-## 6. 数据目录结构
+## 6. Data Directory Structure
 
-**文件**：`src/main/layout.ts` — `ensureDataLayout(dataRoot)`
+**File:** `src/main/layout.ts` — `ensureDataLayout(dataRoot)`
 
 ```
 {dataRoot}/
-├── README.md                     # 数据目录说明
-├── ackem.db                      # SQLite 数据库（运行时创建）
+├── README.md                     # Data directory description
+├── ackem.db                      # SQLite database (created at runtime)
 ├── memory/
 │   ├── facts/
-│   │   └── facts.v2.json         # 事实 JSON 快照（向后兼容）
+│   │   └── facts.v2.json         # Fact JSON snapshot (backward compatibility)
 │   └── shared-events/
 ├── companion/
-│   ├── self.md                   # 伴侣第一人称状态
-│   ├── state.md                  # 伴侣状态快照
-│   └── chat-history-*.json       # 历史聊天记录（遗留格式）
+│   ├── self.md                   # Companion first-person state
+│   ├── state.md                  # Companion state snapshot
+│   └── chat-history-*.json       # Historical chat records (legacy format)
 ├── diary/
-│   └── YYYY-MM-DD.md             # 日记 Markdown
-├── imports/                      # 用户导入文件（PDF/Word/TXT 等）
+│   └── YYYY-MM-DD.md             # Diary Markdown
+├── imports/                      # User-imported files (PDF/Word/TXT, etc.)
 ├── openforu/
 │   ├── sessions/
 │   ├── staging/
@@ -413,44 +415,44 @@ deleteStaleFactEmbeddings(db, sig, activeIds) → 清理过期向量
 ├── extensions/
 │   ├── skills/_registry.json
 │   └── plugins/_registry.json
-├── traces/                       # trace JSONL（遗留格式）
+├── traces/                       # trace JSONL (legacy format)
 ├── weather/
 ├── portrait/
 ├── preferences/
 ├── packs/
-├── _derived/                     # 可重建的派生索引（向量缓存等）
-├── models/                       # Embedding 模型文件
-└── logs/                         # 运行日志
+├── _derived/                     # Rebuildable derived indexes (vector cache, etc.)
+├── models/                       # Embedding model files
+└── logs/                         # Runtime logs
 ```
 
 ---
 
-## 7. 遗留数据导入
+## 7. Legacy Data Import
 
-**文件**：`src/main/db/importLegacy.ts`
+**File:** `src/main/db/importLegacy.ts`
 
-首次打开数据库时（每个 `dataRoot` 一次），从 JSON/MD 文件导入历史数据到 SQLite：
+On first database open (once per `dataRoot`), imports historical data from JSON/MD files into SQLite:
 
-| 源文件 | 目标表 |
+| Source file | Target table |
 |--------|--------|
 | `companion/chat-history-*.json` | `chat_history` |
-| `memory/episodes/episodes.v1.json` | `episodes` + FTS 重建 |
+| `memory/episodes/episodes.v1.json` | `episodes` + FTS rebuild |
 | `memory/kg/kg.v1.json` | `knowledge_triples` |
 | `traces/trace-*.jsonl` | `turn_traces` |
 | `diary/YYYY-MM-DD.md` + `diary/meta.json` | `diary` |
 | `openforu/workspaces.json` | `openforu_workspaces` |
 | `extensions/skills/_registry.json` | `kv_store` |
 
-导入幂等：若目标表 `count > 0` 则跳过。
+Import is idempotent: skipped if target table `count > 0`.
 
 ---
 
-## 8. 相关文档
+## 8. Related Documentation
 
-| 文档 | 内容 |
+| Document | Content |
 |------|------|
-| [00-overall-system.md](./00-overall-system.md) | 数据目录概览，存储设计决策 |
-| [01-brain-system.md](./01-brain-system.md) | 事实存储（FactStore）与关联索引 |
-| [06-time-system.md](./06-time-system.md) | temporal_anchors 表的写入与检索 |
+| [00-overall-system.md](./00-overall-system.md) | Data directory overview, storage design decisions |
+| [01-brain-system.md](./01-brain-system.md) | Fact storage (FactStore) and association indexing |
+| [06-time-system.md](./06-time-system.md) | temporal_anchors table write and retrieval |
 
-*数据层 · Ackem v1.0.0 · 2026-06*
+*Data Layer · Ackem v1.0.0 · 2026-06*

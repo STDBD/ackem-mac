@@ -1,5 +1,7 @@
 # 本地模型配置
 
+> **语言：** 中文 · [English](./local-models-windows.md)
+
 > **产品**：Ackem v1.0.0  
 > **适用**：想使用本地 LLM 推理而非云端 API 的用户
 

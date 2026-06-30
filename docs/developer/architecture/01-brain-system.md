@@ -1,181 +1,186 @@
-# 脑系统 · Brain System
+# Brain System
 
-> **层级**：L0 事件解释 · L0.5 意图路由 · **L4 记忆检索**  
-> **代号**：Brain Engine  
-> **核心问题**：用户说了什么？该召回哪些记忆？  
-> **约束**：L0 是纯规则路径，**零 LLM 调用**，毫秒级完成
+> **Language:** English · [中文](./01-brain-system.zh.md)
+
+> **Layers:** L0 event interpretation · L0.5 intent routing · **L4 memory retrieval**  
+> **Codename:** Brain Engine  
+> **Core question:** What did the user say? Which memories should be recalled?  
+> **Constraint:** L0 is a pure rule path with **zero LLM calls**, completed in milliseconds
 
 ---
 
-## 1. 定位
+## 1. Role
 
-脑系统 **不产生最终回复**。它把用户输入转化为结构化数据（Event + 记忆块），供 **心系统**（情绪/关系调制）和 **嘴系统**（prompt 注入）消费。
+The Brain System **does not produce the final reply**. It converts user input into structured data (Event + memory blocks) for the **Heart System** (emotion/relationship modulation) and **Mouth System** (prompt injection) to consume.
 
 ```
-用户消息
+User message
     │
     ▼
 ┌─────────────────────────────────────────────┐
 │  L0  interpreter.ts      → Event type       │
-│     规则关键词 → 事件分类（零 LLM）           │
-│     含：中文/英文双语言关键词                  │
-│     含：embedding 语义兜底路径               │
+│     Rule keywords → event classification    │
+│     (zero LLM)                              │
+│     Includes: zh/en bilingual keywords      │
+│     Includes: embedding semantic fallback   │
 │                                             │
-│  L0.5 意图路由 (orchestrator 内联)          │
-│     DND 检测 · 记忆操作检测 · 篇幅检测       │
-│     工作意图检测（搜索/文件/命令）            │
+│  L0.5 Intent routing (inline in orchestrator)│
+│     DND detection · memory-op detection     │
+│     verbosity detection                     │
+│     work-intent detection (search/file/cmd) │
 │                                             │
 │  L4  retriever.ts        → tierBBlock       │
-│     多路召回：触发词/FTS/语义/向量/关联/时间  │
-│     去重 + 排序 + 预算裁剪                   │
+│     Multi-path recall: trigger/FTS/semantic/  │
+│     vector/association/temporal             │
+│     Dedup + rank + budget trim              │
 └─────────────────────────────────────────────┘
     │
-    ├──► 心系统 (Event → 关系/情绪)
-    ├──► 扩展系统 (Dispatch / 工具意图)
-    └──► 嘴系统 (Tier B 记忆注入块)
+    ├──► Heart System (Event → relationship/emotion)
+    ├──► Extension System (Dispatch / tool intent)
+    └──► Mouth System (Tier B memory injection block)
 ```
 
 ---
 
-## 2. L0 解释器 — 设计原理
+## 2. L0 Interpreter — Design Principles
 
-**文件**：`src/main/engine/interpreter.ts`  
-**原则**：纯规则，零 LLM，毫秒级。
+**File:** `src/main/engine/interpreter.ts`  
+**Principle:** Pure rules, zero LLM, millisecond latency.
 
-### 分类算法
+### Classification Algorithm
 
-L0 使用 **关键词匹配 + 优先级覆盖** 的事件分类策略：
+L0 uses a **keyword matching + priority override** event classification strategy:
 
 ```
-输入: 用户文本 (string), effectiveTrust (0–100)
-输出: Event { type: EventType, valence?: number, ... }
+Input: user text (string), effectiveTrust (0–100)
+Output: Event { type: EventType, valence?: number, ... }
 
-算法:
-1. 语言检测 → 载入对应关键词表 (zh/en)
-2. 优先级 0 — REDLINE 检测（安全红线）
+Algorithm:
+1. Language detection → load corresponding keyword table (zh/en)
+2. Priority 0 — REDLINE detection (safety red lines)
    if any(redline_keywords): → EventType.EXTREME_REDLINE
-3. 优先级 1 — DND 检测
+3. Priority 1 — DND detection
    if any(dnd_explicit): → EventType.DND_REQUEST
-4. 优先级 2 — 性骚扰 + 伦理违规检测
+4. Priority 2 — Sexual harassment + ethical violation detection
    if any(sexual_harassment): → EventType.SEXUAL_HARASSMENT
    if any(ethical_violation): → EventType.ETHICAL_VIOLATION
-5. 优先级 3 — 常规情绪分类
+5. Priority 3 — Routine emotion classification
    vulnerable → VULNERABLE_TO_PRAISE_OVERRIDE? → PRAISE
-   hurtful → HURTFUL（信任低时） | TEASE（信任高时）
+   hurtful → HURTFUL (low trust) | TEASE (high trust)
    praise → PRAISE
    apology → APOLOGY
    tease → TEASE
    cold → COLD
    question → QUESTION
    casual → CASUAL_CHAT
-6. 优先级 4 — Embedding 语义兜底
-   if (embedding available && 规则无高置信匹配):
-     interpretInputWithEmbedding() → embedding 分类
+6. Priority 4 — Embedding semantic fallback
+   if (embedding available && no high-confidence rule match):
+     interpretInputWithEmbedding() → embedding classification
 ```
 
-### 关键设计：为什么零 LLM？
+### Key Design: Why Zero LLM?
 
-L0 每天在每轮对话中都被调用。如果用 LLM 做分类：
-- 每轮对话会增加一次不必要的 LLM 调用（延迟 + 成本）
-- 分类任务对 LLM 而言过于简单（杀鸡用牛刀）
-- 关键词规则在 Ackem 的上下文中足够精确（用户对伴侣说的话有其模式）
+L0 is invoked on every turn of every conversation. Using an LLM for classification would:
+- Add an unnecessary LLM call per turn (latency + cost)
+- Overkill for a task that is too simple for an LLM
+- Be less precise than keyword rules in Ackem’s context (what users say to a companion follows patterns)
 
-Embedding 兜底路径仅在规则路径输出低置信度时才启用。
+The embedding fallback path is enabled only when the rule path yields low confidence.
 
-### 事件类型一览
+### Event Types Overview
 
 ```
-常用:
-  casual_chat    日常闲聊
-  question       提问/询问
-  praise         赞美/感谢
-  hurtful        伤害性言语
-  vulnerable     脆弱/倾诉
-  apology        道歉
-  tease          调侃/打情骂俏
-  cold           冷淡/敷衍
+Common:
+  casual_chat    Casual chat
+  question       Question/inquiry
+  praise         Praise/thanks
+  hurtful        Hurtful speech
+  vulnerable     Vulnerability/confiding
+  apology        Apology
+  tease          Teasing/flirting
+  cold           Cold/dismissive
 
-关系敏感:
-  DND_REQUEST    勿扰模式
-  MEMORY_INTENT  显式记忆操作（"还记得…"）
+Relationship-sensitive:
+  DND_REQUEST    Do-not-disturb mode
+  MEMORY_INTENT  Explicit memory operation ("do you remember…")
 
-安全红线:
-  EXTREME_REDLINE  自杀/自残等（触发安全冻结）
-  SEXUAL_HARASSMENT  性骚扰（拒绝/冷却）
-  ETHICAL_VIOLATION  伦理违规（硬拒绝）
+Safety red lines:
+  EXTREME_REDLINE  Self-harm/suicide etc. (triggers safety freeze)
+  SEXUAL_HARASSMENT  Sexual harassment (refusal/cooldown)
+  ETHICAL_VIOLATION  Ethical violation (hard refusal)
 ```
 
 
 ---
 
-## 3. L0.5 意图路由（orchestrator 内联）
+## 3. L0.5 Intent Routing (Inline in Orchestrator)
 
-这一层没有独立模块，在 `orchestrator.ts` 的 Pre-LLM 中以内联检测实现：
+This layer has no standalone module; it is implemented as inline detection in Pre-LLM within `orchestrator.ts`:
 
-| 检测 | 函数 | 触发 |
-|------|------|------|
-| DND | `detectDndIntent()` | 用户明确要求安静 |
-| 记忆操作 | `detectMemoryIntent()` | "还记得……吗" 等 |
-| 篇幅 | `detectUserVerbosity()` | 用户消息长度阈值 |
-| 工作意图 | `detectKnowledgeWorkIntent()` | 搜索/文件/代码意图 |
-| 时钟 | `userAsksLocalClock()` | 时间/日期询问 |
+| Detection | Function | Trigger |
+|-----------|----------|---------|
+| DND | `detectDndIntent()` | User explicitly asks for quiet |
+| Memory operation | `detectMemoryIntent()` | "Do you remember…" etc. |
+| Verbosity | `detectUserVerbosity()` | User message length threshold |
+| Work intent | `detectKnowledgeWorkIntent()` | Search/file/code intent |
+| Clock | `userAsksLocalClock()` | Time/date inquiry |
 
-这些检测在 L0 之后、L1 更新之前执行，可以改变后续流程（如 DND 跳过主动消息）。
+These checks run after L0 and before L1 updates, and can alter downstream flow (e.g. DND skips proactive messages).
 
 ---
 
-## 4. L4 记忆系统 — MnemoStack 架构
+## 4. L4 Memory System — MnemoStack Architecture
 
-**目录**：`src/main/memory/`  
-**核心文件**：约 20 个模块，约 5000 行
+**Directory:** `src/main/memory/`  
+**Core files:** ~20 modules, ~5000 lines
 
-### 4.1 整体架构
+### 4.1 Overall Architecture
 
 ```
                    MemoryIngestPipeline
-                   (写入: 对话后异步执行)
+                   (write: async after conversation)
                          │
             ┌────────────┴────────────┐
             │                         │
        FactExtractor           EpisodeExtractor
-       (LLM 事实抽取)           (LLM 情节抽取)
+       (LLM fact extraction)    (LLM episode extraction)
             │                         │
             └────────────┬────────────┘
                          │
-              Consolidator (合并去重)
+              Consolidator (merge + dedup)
                          │
               ┌──────────┴──────────┐
               │                     │
          FactStore             EpisodicStore
          (facts.v2.json)       (episodes)
               │                     │
-              ├── VectorStore (向量索引)
-              ├── KnowledgeGraph (关联图)
-              └── AssociationIndex (共现)
+              ├── VectorStore (vector index)
+              ├── KnowledgeGraph (association graph)
+              └── AssociationIndex (co-occurrence)
                          ▲
                          │
                    MemoryRetriever
-                   (读取: 每轮对话 Pre-LLM)
+                   (read: Pre-LLM each turn)
 ```
 
-### 4.2 FactStore — 事实存储
+### 4.2 FactStore — Fact Storage
 
-**文件**：`src/main/memory/factStore.ts`
+**File:** `src/main/memory/factStore.ts`
 
-MemoryFact 结构：
+MemoryFact structure:
 
 ```typescript
 interface MemoryFact {
   id: string
-  tier: 'core' | 'archival'        // 核心 / 归档
-  domain: string                    // 如 "user_personal", "relationship"
-  subcategory: string               // 如 "hobby", "family"
-  subject: string                   // 主题
-  summary: string                   // 事实内容
+  tier: 'core' | 'archival'        // core / archival
+  domain: string                    // e.g. "user_personal", "relationship"
+  subcategory: string               // e.g. "hobby", "family"
+  subject: string                   // topic
+  summary: string                   // fact content
   confidence: number                // 0–1
-  weight: number                    // 重要性权重
-  selfRelevance: number             // 对 Ackem 自身的影响度
-  triggers: string[]                // 触发词，用于快速检索
+  weight: number                    // importance weight
+  selfRelevance: number             // impact on Ackem itself
+  triggers: string[]                // trigger words for fast retrieval
   privacyLevel: 'normal' | 'intimate' | 'explicit'
   emotionalContext?: { valence: number; aff: number }
   createdAt: string
@@ -185,264 +190,264 @@ interface MemoryFact {
 }
 ```
 
-**事实分类法**（`taxonomy.ts`）— 6 大领域 × 25 子类：
+**Fact taxonomy** (`taxonomy.ts`) — 6 domains × 25 subcategories:
 
-| 领域 | 中文 | 子类 |
-|------|------|------|
-| `IDENTITY` | 自我与身份 | `BASIC_PROFILE` 基本信息 · `LIFE_STORY` 人生经历 · `VALUES_BELIEFS` 价值观与信念 · `SELF_PERCEPTION` 自我认知 |
-| `SOCIAL` | 关系与社交 | `OUR_BOND` 我们的羁绊 · `FAMILY` 家庭 · `FRIENDS` 朋友 · `PARTNER` 伴侣 |
-| `DAILY_LIFE` | 日常生活 | `ROUTINES` 日常习惯 · `HEALTH` 身心健康 · `LIVING_SPACE` 居住环境 · `LIFESTYLE` 生活方式 |
-| `PURSUITS` | 事业与成长 | `CAREER` 事业与工作 · `LEARNING` 学习与技能 · `GOALS` 目标与梦想 · `PROJECTS` 项目与创作 · `PROCEDURES` 做事方式 |
-| `INNER_WORLD` | 内心世界 | `MOOD` 情绪状态 · `TASTES` 喜好与品味 · `VULNERABILITIES` 脆弱与秘密 · `INSIDE_JOKES` 默契与暗号 |
-| `TEMPORAL` | 当下与未来 | `NOW` 当下状态 · `COMMITMENTS` 承诺与约定 · `PLANS` 近期计划 · `WORLD` 外部世界 |
+| Domain | Label | Subcategories |
+|--------|-------|---------------|
+| `IDENTITY` | Self & identity | `BASIC_PROFILE` basic info · `LIFE_STORY` life history · `VALUES_BELIEFS` values & beliefs · `SELF_PERCEPTION` self-perception |
+| `SOCIAL` | Relationships & social | `OUR_BOND` our bond · `FAMILY` family · `FRIENDS` friends · `PARTNER` partner |
+| `DAILY_LIFE` | Daily life | `ROUTINES` routines · `HEALTH` physical & mental health · `LIVING_SPACE` living environment · `LIFESTYLE` lifestyle |
+| `PURSUITS` | Career & growth | `CAREER` career & work · `LEARNING` learning & skills · `GOALS` goals & dreams · `PROJECTS` projects & creations · `PROCEDURES` ways of doing things |
+| `INNER_WORLD` | Inner world | `MOOD` mood state · `TASTES` tastes & preferences · `VULNERABILITIES` vulnerabilities & secrets · `INSIDE_JOKES` inside jokes & signals |
+| `TEMPORAL` | Present & future | `NOW` current state · `COMMITMENTS` commitments & promises · `PLANS` near-term plans · `WORLD` external world |
 
-每个子类有独立的元数据配置（`CATEGORY_META`）：默认权重、置信度、衰减速率 λ、自身相关性，部分子类（`NOW`、`PLANS`、`WORLD`）设自动退役天数。
+Each subcategory has its own metadata config (`CATEGORY_META`): default weight, confidence, decay rate λ, self-relevance; some subcategories (`NOW`, `PLANS`, `WORLD`) also define auto-retire days.
 
-**关键操作**：
+**Key operations:**
 
-| 操作 | 方法 | 说明 |
-|------|------|------|
-| 写入 | `upsertFact()` | 插入或更新，自动去重 |
-| 触发词检索 | `searchByTriggers()` | 用户消息含触发词时快速命中 |
-| 全文本检索 | `searchByFts()` | SQLite FTS5 扩展 |
-| 注入选择 | `selectForInjection()` | 按 confidence + weight 排序，预算裁剪 |
-| 退役 | `retire()` | 低 confidence、低 accessCount 自动退役 |
-| 合并 | `consolidate()` | 同 domain+subject 的高相似度事实合并 |
+| Operation | Method | Description |
+|-----------|--------|-------------|
+| Write | `upsertFact()` | Insert or update with automatic dedup |
+| Trigger retrieval | `searchByTriggers()` | Fast hit when user message contains trigger words |
+| Full-text retrieval | `searchByFts()` | SQLite FTS5 extension |
+| Injection selection | `selectForInjection()` | Sort by confidence + weight, budget trim |
+| Retire | `retire()` | Auto-retire low confidence, low accessCount |
+| Merge | `consolidate()` | Merge high-similarity facts with same domain+subject |
 
-### 4.3 MemoryRetriever — 多路扩散检索引擎
+### 4.3 MemoryRetriever — Multi-Path Diffusion Retrieval Engine
 
-**文件**：`src/main/memory/retriever.ts`（~500 行）
+**File:** `src/main/memory/retriever.ts` (~500 lines)
 
-这是记忆系统的核心算法。每轮对话执行一次，从 **9 条路径**扩散召回记忆，经去重、排序、预算裁剪后组装为 Tier B 注入块。
+This is the core algorithm of the memory system. It runs once per conversation turn, diffuses recall across **9 paths**, then assembles a Tier B injection block after dedup, ranking, and budget trimming.
 
-#### 4.3.1 九路扩散召回
+#### 4.3.1 Nine-Path Diffusion Recall
 
 ```
 retrieve(query, hint, budget, valence, aff, temporalCtx, queryEmbed, ...)
     │
-    ├── ① Trigger 触发词匹配 ───────────────── fast path
+    ├── ① Trigger word match ───────────────── fast path
     │     factStore.searchByTriggers(query)
-    │     子字符串包含匹配（触发词数组中的任意词出现在用户消息中）
+    │     Substring containment (any trigger word appears in user message)
     │
-    ├── ② 注入预选 ──────────────────────────── background
+    ├── ② Injection pre-selection ─────────── background
     │     factStore.selectForInjection(budget, minConfidence=0.55)
-    │     按 scoreRelevance 排序的贪心选择（与查询无关的背景事实）
+    │     Greedy selection sorted by scoreRelevance (query-agnostic background facts)
     │
-    ├── ③ FTS5 全文本搜索 ──────────────────── keyword
+    ├── ③ FTS5 full-text search ───────────── keyword
     │     factStore.searchByFts(query, topK=5)
-    │     SQLite FTS5 引擎，关键词级别
+    │     SQLite FTS5 engine, keyword level
     │
-    ├── ④ Jaccard 语义搜索 ──────────────────── shallow semantic
+    ├── ④ Jaccard semantic search ─────────── shallow semantic
     │     searchBySemantics(facts, query, topK=5)
-    │     字符 Jaccard + 关键词 Jaccard ∘ 1.2 混合
-    │     阈值 0.12
+    │     Character Jaccard + keyword Jaccard ∘ 1.2 blend
+    │     Threshold 0.12
     │
-    ├── ⑤ Embedding 向量搜索 ────────────────── deep semantic
+    ├── ⑤ Embedding vector search ─────────── deep semantic
     │     vectorStore.searchAsync(query, topK=6, queryEmbed)
-    │     稠密向量 cosine 搜索（ONNX Runtime）
+    │     Dense vector cosine search (ONNX Runtime)
     │     ≥ EMBEDDING_MIN_SCORE(0.35)
     │
-    ├── ⑥ TF-IDF 向量搜索（兜底）─────────────── fallback
+    ├── ⑥ TF-IDF vector search (fallback) ─── fallback
     │     vectorStore.search(query, topK=6)
-    │     CJK 2-gram + 单词分词，余弦 ≥ 0.05
-    │     仅当 embedding 不可用且非短路时执行
+    │     CJK 2-gram + word tokenization, cosine ≥ 0.05
+    │     Runs only when embedding unavailable and not short-circuited
     │
-    ├── ⑦ 时间语义检索 ──────────────────────── temporal signal
-    │     当 msgTemporalSemanticSignal 非空时
-    │     用语义标签做 FTS + Jaccard + embedding（阈值降为 0.3）
-    │     产出【时间回忆线索】提示头
+    ├── ⑦ Temporal semantic retrieval ─────── temporal signal
+    │     When msgTemporalSemanticSignal is non-empty
+    │     FTS + Jaccard + embedding on semantic tags (threshold lowered to 0.3)
+    │     Produces 【temporal recall cue】 header
     │
-    ├── ⑧ 时间锚点扩散 ──────────────────────── temporal anchor
-    │     策略 A：recurring 锚点 ±7 天窗口，30 天未触发，top 3
-    │     策略 B：recurring ±30 天 + fuzzy 过去 90 天
-    │     解析 linked_fact_ids JSON → temporalAnchorHits
+    ├── ⑧ Temporal anchor diffusion ───────── temporal anchor
+    │     Strategy A: recurring anchor ±7 day window, not triggered in 30 days, top 3
+    │     Strategy B: recurring ±30 days + fuzzy past 90 days
+    │     Parse linked_fact_ids JSON → temporalAnchorHits
     │
-    └── ⑨ 关联网络扩散 ──────────────────────── graph diffusion
-          从种子事实出发，沿关联边一跳扩散
+    └── ⑨ Association network diffusion ───── graph diffusion
+          One-hop diffusion from seed facts along association edges
           associationIndex.getAssociations(seedId, minStrength=0.3)
-          产生 associationHits（新发现的关联事实）
+          Produces associationHits (newly discovered associated facts)
 ```
 
-**短路优化**：当触发词 + FTS 返回 ≥5 个不同事实且至少一个 `confidence > 0.7` 时，跳过 TF-IDF 向量搜索。Embedding 搜索和关联扩散**不被跳过**。
+**Short-circuit optimization:** When trigger + FTS return ≥5 distinct facts and at least one has `confidence > 0.7`, TF-IDF vector search is skipped. Embedding search and association diffusion are **not skipped**.
 
-#### 4.3.2 合并去重
+#### 4.3.2 Merge and Dedup
 
-所有路径的事实汇集到 `factsForEcho[]`，用 `mergedIds` Set 保证同一事实只出现一次。注入优先级顺序：
+Facts from all paths are collected into `factsForEcho[]`; a `mergedIds` Set ensures each fact appears only once. Injection priority order:
 
 ```
-触发词命中 → 注入预选 → FTS → Embedding → Jaccard语义 → TF-IDF
-→ 时间语义 → 时间锚点 → 关联扩散
+Trigger hit → injection pre-selection → FTS → Embedding → Jaccard semantic → TF-IDF
+→ temporal semantic → temporal anchor → association diffusion
 ```
 
-关联扩散去重与 `mergedIds` 联动——已通过直接路径找到的事实不会被关联边重复加入。
+Association diffusion dedup is linked to `mergedIds` — facts already found via direct paths are not re-added via association edges.
 
-#### 4.3.3 最终排序公式
+#### 4.3.3 Final Ranking Formula
 
-每条事实的最终排名分由四个因子**乘积累积**：
+Each fact’s final rank score is the **product** of four factors:
 
 ```
 finalScore = temporalBoost × recencyBoost × emotionBoost × pathBoost × scoreRelevance
 ```
 
-| 因子 | 条件 | 乘数 |
-|------|------|------|
-| **temporalBoost** | 六维时间加权（昼夜/星期/季节/深夜/重逢/距离） | 0.9 ~ 4.5 |
-| **recencyBoost** | hint.favorRecent=true 且 3 天内更新 | 1.5 |
-| **emotionBoost** | 情绪波动 >0.4 且子类为 OUR_BOND/MOOD/VULNERABILITIES/SELF_PERCEPTION | 1 + vol×0.5 (max 1.5) |
-| **pathBoost** | 被任意检索路径命中 | **TRIGGER_MATCH_BOOST = 2.0** |
-| **scoreRelevance** | 基础相关性评分（见下方） | weight×e^(-λ×days)×selfRelevance×(1+intensity×0.5) |
+| Factor | Condition | Multiplier |
+|--------|-----------|------------|
+| **temporalBoost** | Six-dimensional temporal weighting (day/night, weekday, season, late night, reunion, distance) | 0.9 ~ 4.5 |
+| **recencyBoost** | hint.favorRecent=true and updated within 3 days | 1.5 |
+| **emotionBoost** | Emotional volatility >0.4 and subcategory is OUR_BOND/MOOD/VULNERABILITIES/SELF_PERCEPTION | 1 + vol×0.5 (max 1.5) |
+| **pathBoost** | Hit by any retrieval path | **TRIGGER_MATCH_BOOST = 2.0** |
+| **scoreRelevance** | Base relevance score (see below) | weight×e^(-λ×days)×selfRelevance×(1+intensity×0.5) |
 
-**scoreRelevance 的额外增强**：
+**Additional boosts to scoreRelevance:**
 
 ```
-情绪一致: |fact.valence - currentValence| < 0.3  → ×1.5 (正常) / ×1.2 (|aff|≥50)
-近因提升: 最近 4 小时内更新 → ×1.8
-嵌入对齐: queryEmbed + factEmbeddingCache 可用 → ×(1 + cosine×0.3)
+Emotional alignment: |fact.valence - currentValence| < 0.3  → ×1.5 (normal) / ×1.2 (|aff|≥50)
+Recency boost: updated within last 4 hours → ×1.8
+Embedding alignment: queryEmbed + factEmbeddingCache available → ×(1 + cosine×0.3)
 ```
 
-#### 4.3.4 预算裁剪与 Tier B 组装
+#### 4.3.4 Budget Trimming and Tier B Assembly
 
-全局预算 `TIER_B_CHAR_BUDGET = 8000` 字符，按优先级填充各块：
+Global budget `TIER_B_CHAR_BUDGET = 8000` characters; blocks are filled by priority:
 
 ```
 budget = min(adjustedBudget, 8000)
 
-① 时间语义提示头（若存在）         → 一次性字符串
-② 核心记忆（core 事实）            → min(2000, budget×40%)
-③ 注入事实行（排序后的事实列表）    → 填满预算，留 ≥200 给后续
-④ Chunk 片段                       → CHUNK_SEARCH_MAX_RESULTS = 8
-⑤ 知识图谱上下文                    → KG_CHAR_BUDGET = 800（剩余 >150 时）
-⑥ 情节记忆                         → EPISODE_CHAR_BUDGET = 1200（剩余 >150 时）
+① Temporal semantic header (if present)     → one-time string
+② Core memories (core facts)                → min(2000, budget×40%)
+③ Injected fact lines (ranked fact list)    → fill budget, reserve ≥200 for later
+④ Chunk snippets                            → CHUNK_SEARCH_MAX_RESULTS = 8
+⑤ Knowledge graph context                   → KG_CHAR_BUDGET = 800 (when remaining >150)
+⑥ Episodic memories                         → EPISODE_CHAR_BUDGET = 1200 (when remaining >150)
 ```
 
-**来源标注**：注入的每行事实尾部追加来源标记：
+**Source annotation:** Each injected fact line gets a trailing source marker:
 
 ```
-· subject：summary                 ← 触发词/嵌入/FTS/语义/预选
-· subject：summary  ↳ 关联扩散     ← 关联图一跳发现
-· subject：summary  ↳ 时间语义     ← 时间信号匹配
-· subject：summary  ↳ 时间锚点     ← 时间锚点表解析
+· subject：summary                 ← trigger/embedding/FTS/semantic/pre-selection
+· subject：summary  ↳ association diffusion  ← one-hop discovery via association graph
+· subject：summary  ↳ temporal semantic      ← temporal signal match
+· subject：summary  ↳ temporal anchor        ← temporal anchor table parse
 ```
 
-#### 4.3.5 共现跟踪（co-occurrence）
+#### 4.3.5 Co-occurrence Tracking
 
-排名完成后，每 3 轮执行一次共现更新（防过快增长）：
+After ranking completes, co-occurrence is updated every 3 turns (to prevent runaway growth):
 
-1. 取按 `scoreRelevance` 排序的前 8 条事实
-2. 两两配对 `(fa, fb)`：
-   - 必须在同一 `domain`
-   - 若有 embedding，cosine 需 > 0.3
-3. 通过则调用 `associationIndex.strengthenOrCreate(fa.id, fb.id, type)`
-   - 同 subcategory → `'event_chain'`
-   - 跨 subcategory → `'thematic'`
+1. Take top 8 facts sorted by `scoreRelevance`
+2. Pair `(fa, fb)`:
+   - Must share the same `domain`
+   - If embeddings exist, cosine must be > 0.3
+3. On pass, call `associationIndex.strengthenOrCreate(fa.id, fb.id, type)`
+   - Same subcategory → `'event_chain'`
+   - Cross subcategory → `'thematic'`
 
-#### 4.3.6 跟踪输出
+#### 4.3.6 Trace Output
 
-`RetrievalResult.trace` 包含关键指标：
+`RetrievalResult.trace` includes key metrics:
 
-| 字段 | 含义 |
-|------|------|
-| `factsUsed` | 去重后注入的事实数 |
-| `embeddingHits` | Embedding 搜索命中数 |
-| `associationHits` | 关联扩散新发现的事实数 |
-| `associationActivations` | 本次遍历的关联边总数 |
-| `temporalAnchorHits` | 时间锚点解析的事实数 |
-| `memoirTrust` | OUR_BOND 事实的加权平均信任度（下限 25） |
-| `episodesUsed` | 检索到的情节记忆数 |
+| Field | Meaning |
+|-------|---------|
+| `factsUsed` | Deduped count of injected facts |
+| `embeddingHits` | Embedding search hit count |
+| `associationHits` | New facts discovered via association diffusion |
+| `associationActivations` | Total association edges traversed this run |
+| `temporalAnchorHits` | Facts resolved from temporal anchors |
+| `memoirTrust` | Weighted average trust of OUR_BOND facts (floor 25) |
+| `episodesUsed` | Episodic memories retrieved |
 
-### 4.4 Ingestion Pipeline — 记忆写入
+### 4.4 Ingestion Pipeline — Memory Write Path
 
-**文件**：`src/main/memory/ingest.ts`
+**File:** `src/main/memory/ingest.ts`
 
-对话完成后异步执行，分三阶段：
+Runs asynchronously after a conversation completes, in three phases:
 
 ```
-Phase 1 — 轻量同步（毫秒级）
-  ├── captureEmotionalContext()    情绪上下文捕获
-  ├── 简单规则事实抽取              无需 LLM 的事实
-  ├── writeTemporalAnchor()        时间锚点
-  ├── autoMirrorCheck()            自动镜像检查
-  └── contradictionCheck()         矛盾检测
+Phase 1 — Lightweight sync (milliseconds)
+  ├── captureEmotionalContext()    Capture emotional context
+  ├── Simple rule-based fact extraction  Facts without LLM
+  ├── writeTemporalAnchor()        Temporal anchor
+  ├── autoMirrorCheck()            Auto mirror check
+  └── contradictionCheck()         Contradiction detection
 
-Phase 2 — LLM 异步提取（秒级）
-  ├── FactExtractor.extract()      用 LLM 抽取结构化事实
-  │     输入: 本轮对话 (user + assistant)
-  │     输出: { domain, subcategory, subject, summary }[]
-  ├── EpisodeExtractor.extract()   情节抽取
-  │     输入: 最近多轮对话
-  │     输出: 情节叙事块
-  └── TripleExtractor.extract()    知识图谱三元组
+Phase 2 — LLM async extraction (seconds)
+  ├── FactExtractor.extract()      LLM structured fact extraction
+  │     Input: this turn (user + assistant)
+  │     Output: { domain, subcategory, subject, summary }[]
+  ├── EpisodeExtractor.extract()   Episode extraction
+  │     Input: recent multi-turn conversation
+  │     Output: episodic narrative blocks
+  └── TripleExtractor.extract()    Knowledge graph triples
 
-Phase 3 — 持久化
-  ├── consolidator.consolidate()   合并去重 + 权重更新
-  ├── factStore 写入               落盘 facts.v2.json + SQLite
-  ├── episodicStore 写入           情节存储
-  ├── knowledgeGraph 写入          图关联
-  ├── associationColdStart         新事实关联种植
-  └── factEmbeddingCache 更新      向量缓存
+Phase 3 — Persistence
+  ├── consolidator.consolidate()   Merge/dedup + weight update
+  ├── factStore write              Persist facts.v2.json + SQLite
+  ├── episodicStore write          Episodic storage
+  ├── knowledgeGraph write         Graph associations
+  ├── associationColdStart         Seed associations for new facts
+  └── factEmbeddingCache update    Vector cache
 ```
 
-### 4.5 知识图谱与关联系统
+### 4.5 Knowledge Graph and Association System
 
-**文件**：`knowledgeGraph.ts`、`associationColdStart.ts`、`associationIndex.ts`
+**Files:** `knowledgeGraph.ts`, `associationColdStart.ts`, `associationIndex.ts`
 
-Ackem 的事实之间通过 **关联边** 连接，形成轻量知识图谱：
+Ackem facts are connected by **association edges**, forming a lightweight knowledge graph:
 
-| 关联类型 | 触发条件 | 用途 |
-|----------|----------|------|
-| 共现 | 同一轮对话中同时出现 | 相关事实联合召回 |
-| 同 domain | 共享 domain + subcategory | 同类事实扩展 |
-| Embedding 相似 | cosine > 阈值 | 语义近似的自动关联 |
-| 时间锚点 | 共享 temporal anchor | 同一特殊日期的记忆 |
-| 显式 | LLM 抽取的三元组 | "用户喜欢猫" → "用户养了一只橘猫" |
+| Association type | Trigger condition | Purpose |
+|------------------|-------------------|---------|
+| Co-occurrence | Appear together in the same turn | Joint recall of related facts |
+| Same domain | Shared domain + subcategory | Expand within category |
+| Embedding similarity | cosine > threshold | Auto-link semantically similar facts |
+| Temporal anchor | Shared temporal anchor | Memories of the same special date |
+| Explicit | LLM-extracted triples | "User likes cats" → "User has an orange cat" |
 
-**冷启动策略**：新事实写入时，`seedAssociationsForNewFacts()` 计算与现有事实的 embedding 相似度，自动建立初始关联边。
+**Cold-start strategy:** When new facts are written, `seedAssociationsForNewFacts()` computes embedding similarity against existing facts and automatically establishes initial association edges.
 
 ---
 
-## 5. 遗忘与衰减
+## 5. Forgetting and Decay
 
-Ackem 的记忆不是永久不变的。为了让记忆系统更接近人类的遗忘曲线，Ackem 实现了多层级的衰减、退役、整合与矛盾解决机制。
+Ackem memories are not permanent. To approximate human forgetting curves, Ackem implements multi-layer decay, retirement, consolidation, and contradiction resolution.
 
-### 5.1 指数衰减模型
+### 5.1 Exponential Decay Model
 
-每一条 MemoryFact 在参与相关性评分、核心席位竞争、记忆回响时，都会经历指数衰减：
+Every MemoryFact undergoes exponential decay when participating in relevance scoring, core slot competition, and memory echo:
 
 ```
 score = weight × e^(-λ × days) × selfRelevance × ...
 ```
 
-其中 `λ`（decayLambda）取决于事实的子类别和层级：
+Where `λ` (decayLambda) depends on the fact’s subcategory and layer:
 
-| 层级 | λ 来源 | 半衰期 |
-|------|--------|--------|
-| 原始事实（`factLayer: 'raw'`） | 子类别专属 decayLambda（见下方表格） | 7 天 ~ 693 天 |
-| 整合洞察（`factLayer: 'consolidated'`） | `CONSOLIDATED_DECAY_LAMBDA = 0.003` | ≈630 天 |
+| Layer | λ source | Half-life |
+|-------|----------|-----------|
+| Raw facts (`factLayer: 'raw'`) | Subcategory-specific decayLambda (see table below) | 7 days ~ 693 days |
+| Consolidated insights (`factLayer: 'consolidated'`) | `CONSOLIDATED_DECAY_LAMBDA = 0.003` | ≈630 days |
 
-**25 个子类别的衰减参数**：
+**Decay parameters for 25 subcategories:**
 
-| 子类别 | 领域 | decayLambda | 半衰期 | autoRetireDays |
-|--------|------|-------------|--------|----------------|
-| BASIC_PROFILE / LIFE_STORY | IDENTITY | 0.001 | 693天 | — |
-| OUR_BOND | SOCIAL | 0.001 | 693天 | — |
-| FAMILY | SOCIAL | 0.002 | 347天 | — |
-| PROCEDURES | PURSUITS | 0.002 | 347天 | — |
-| HEALTH | DAILY_LIFE | 0.002 | 347天 | — |
-| VALUES_BELIEFS / PARTNER / VULNERABILITIES | — | 0.003 | 231天 | — |
-| SELF_PERCEPTION / FRIENDS / CAREER / GOALS / TASTES / INSIDE_JOKES | — | 0.005 | 139天 | — |
-| LEARNING / PROJECTS | PURSUITS | 0.008 | 87天 | — |
-| ROUTINES | DAILY_LIFE | 0.008 | 87天 | — |
-| LIVING_SPACE / LIFESTYLE | DAILY_LIFE | 0.01 | 69天 | — |
-| PLANS | TEMPORAL | 0.02 | 35天 | 7 |
-| MOOD | INNER_WORLD | 0.05 | 14天 | — |
-| NOW / WORLD | TEMPORAL | 0.1 | 7天 | 3 / 7 |
-| COMMITMENTS | TEMPORAL | **0** | 永不衰减 | — |
+| Subcategory | Domain | decayLambda | Half-life | autoRetireDays |
+|-------------|--------|-------------|-----------|----------------|
+| BASIC_PROFILE / LIFE_STORY | IDENTITY | 0.001 | 693 days | — |
+| OUR_BOND | SOCIAL | 0.001 | 693 days | — |
+| FAMILY | SOCIAL | 0.002 | 347 days | — |
+| PROCEDURES | PURSUITS | 0.002 | 347 days | — |
+| HEALTH | DAILY_LIFE | 0.002 | 347 days | — |
+| VALUES_BELIEFS / PARTNER / VULNERABILITIES | — | 0.003 | 231 days | — |
+| SELF_PERCEPTION / FRIENDS / CAREER / GOALS / TASTES / INSIDE_JOKES | — | 0.005 | 139 days | — |
+| LEARNING / PROJECTS | PURSUITS | 0.008 | 87 days | — |
+| ROUTINES | DAILY_LIFE | 0.008 | 87 days | — |
+| LIVING_SPACE / LIFESTYLE | DAILY_LIFE | 0.01 | 69 days | — |
+| PLANS | TEMPORAL | 0.02 | 35 days | 7 |
+| MOOD | INNER_WORLD | 0.05 | 14 days | — |
+| NOW / WORLD | TEMPORAL | 0.1 | 7 days | 3 / 7 |
+| COMMITMENTS | TEMPORAL | **0** | Never decays | — |
 
-设计原则：**越「当下」的事实衰减越快**（NOW 7 天半衰期），**越「身份核心」的事实衰减越慢**（BASIC_PROFILE 693 天半衰期）。COMMITMENTS 承诺永不衰减。
+Design principle: **the more "present-moment" a fact is, the faster it decays** (NOW: 7-day half-life); **the more "identity-core" a fact is, the slower it decays** (BASIC_PROFILE: 693-day half-life). COMMITMENTS never decay.
 
-### 5.2 计算衰减评分
+### 5.2 Computing Decayed Score
 
-**`computeDecayedScore()`** 用于核心记忆席位竞争（`factStore.ts`）：
+**`computeDecayedScore()`** is used for core memory slot competition (`factStore.ts`):
 
 ```typescript
 private computeDecayedScore(f: MemoryFact): number {
@@ -455,165 +460,165 @@ private computeDecayedScore(f: MemoryFact): number {
 }
 ```
 
-**`scoreRelevance()`** 用于提示注入排序时增加情绪一致性和近因调制：
+**`scoreRelevance()`** adds emotional alignment and recency modulation for prompt injection ranking:
 
 ```
 score = weight × e^(-λ×days) × selfRelevance × (1 + intensity×0.5)
-       × (情绪一致? 1.5/1.2 : 1)
-       × (4小时内更新? 1.8 : 1)
-       × (embedding对齐? 1 + cosine×0.3 : 1)
+       × (emotion aligned? 1.5/1.2 : 1)
+       × (updated within 4h? 1.8 : 1)
+       × (embedding aligned? 1 + cosine×0.3 : 1)
 ```
 
-### 5.3 核心记忆席位竞争
+### 5.3 Core Memory Slot Competition
 
-Core 记忆硬上限 `CORE_MEMORY_MAX_COUNT = 12`。当核心事实超过 12 条时：
+Core memory hard cap: `CORE_MEMORY_MAX_COUNT = 12`. When core facts exceed 12:
 
-1. 每条核心事实计算 `computeDecayedScore()`（衰减后分数）
-2. 得分最低的溢出的核心事实降级为 `archival` 层级
-3. 新事实权重达到 `CORE_MEMORY_WEIGHT_THRESHOLD = 3.0` 时自动升级为核心
+1. Each core fact computes `computeDecayedScore()` (post-decay score)
+2. Lowest-scoring overflow core facts are demoted to `archival` tier
+3. New facts auto-promote to core when weight reaches `CORE_MEMORY_WEIGHT_THRESHOLD = 3.0`
 
-### 5.4 自动退役
+### 5.4 Automatic Retirement
 
-**基于时间的退役**（`autoRetireExpired()`）：
+**Time-based retirement** (`autoRetireExpired()`):
 
-每 `AUTO_RETIRE_CHECK_INTERVAL = 10` 轮，扫描 `NOW`、`PLANS`、`WORLD` 三个子类别的活跃事实，将超过 `autoRetireDays` 天数的事实标记为 `status: 'retired'`。目前仅这三个子类别参与自动退役。
+Every `AUTO_RETIRE_CHECK_INTERVAL = 10` turns, scan active facts in `NOW`, `PLANS`, and `WORLD`; facts exceeding `autoRetireDays` are marked `status: 'retired'`. Only these three subcategories participate in auto-retirement today.
 
-**物理清理**（`compactFacts()`）：
+**Physical compaction** (`compactFacts()`):
 
-每 50 轮，从数组中物理删除已退役的瞬时类事实（NOW/PLANS/WORLD），保留期 `AUTO_COMPACT_RETENTION_DAYS = 30` 天。其他子类别的退役事实**永久保留标记**，仅改变状态不物理删除。
+Every 50 turns, physically delete retired ephemeral facts (NOW/PLANS/WORLD) from the array; retention period `AUTO_COMPACT_RETENTION_DAYS = 30` days. Retired facts in other subcategories are **kept permanently as marked records** — status changes only, no physical deletion.
 
-### 5.5 去重加权与名字降权
+### 5.5 Dedup Weighting and Name Demotion
 
-**去重合并**：当新事实与已有事实的 Jaccard 相似度 > `0.42` 或 embedding cosine > `0.85` 时：
+**Dedup merge:** When Jaccard similarity between a new fact and an existing fact is > `0.42` or embedding cosine > `0.85`:
 
 ```typescript
 existing.weight = Math.max(existing.weight, newWeight) + FACT_DEDUP_WEIGHT_BOOST  // +0.5
 ```
 
-多次确认的同一记忆权重逐步累积，这正是「重复即重要」的实现。
+Repeated confirmation of the same memory accumulates weight — the implementation of "repetition means importance."
 
-**名字降权**：记录新名字/昵称时，同一 subject 的旧名字权重 -1（最低 0），反映「用户改了称呼」的场景。
+**Name demotion:** When recording a new name/nickname, old names under the same subject lose 1 weight (minimum 0), reflecting "the user changed what they want to be called."
 
-### 5.6 LLM 整合（Consolidation）
+### 5.6 LLM Consolidation
 
-**目标**：从多条原始事实中提取高层的、衰减更慢的洞察。
+**Goal:** Extract higher-level, slower-decaying insights from multiple raw facts.
 
-**触发条件**（`autoConsolidationPolicy.ts`）：
-
-```
-前提: 原始事实数 ≥ 6
-条件（满足任一）:
-  - 轮次 ≥ 60              → 强制整合
-  - 轮次 ≥ 30              → 常规整合
-  - 有意义事件密度 > 40%    → 早期触发
-```
-
-**流程**：
-1. 取最近最多 30 条原始事实（按 updatedAt 降序）
-2. LLM 识别跨事实的模式，产出最多 4 条整合洞察
-3. 每条洞察以 `weight=4.0`、`confidence=0.7`、`factLayer='consolidated'` 写入
-4. 使用 `CONSOLIDATED_DECAY_LAMBDA = 0.003`（衰减极慢）
+**Trigger conditions** (`autoConsolidationPolicy.ts`):
 
 ```
-原始（raw）         整合（consolidated）
-  weight=2.5           weight=4.0
-  λ=0.01               λ=0.003
-  半衰期~69天          半衰期~630天
-  未整合                 来自 3 条原始事实
+Prerequisite: raw fact count ≥ 6
+Conditions (any one):
+  - turns ≥ 60              → forced consolidation
+  - turns ≥ 30              → routine consolidation
+  - meaningful event density > 40%  → early trigger
 ```
 
-### 5.7 矛盾检测与自我编辑
+**Flow:**
+1. Take up to 30 most recent raw facts (sorted by updatedAt descending)
+2. LLM identifies cross-fact patterns, produces up to 4 consolidated insights
+3. Each insight is written with `weight=4.0`, `confidence=0.7`, `factLayer='consolidated'`
+4. Uses `CONSOLIDATED_DECAY_LAMBDA = 0.003` (very slow decay)
 
-**采样**（`factContradictionSampler.ts`）：每 `MIRROR_CHECK_INTERVAL_TURNS = 20` 轮，按 updatedAt 降序扫描同 subcategory 的事实对，Jaccard 相似度 > 0.35 且权重 ≥ 1.5 的送入 LLM 判断。
+```
+Raw                    Consolidated
+  weight=2.5               weight=4.0
+  λ=0.01                   λ=0.003
+  half-life ~69 days       half-life ~630 days
+  unconsolidated           derived from 3 raw facts
+```
 
-**LLM 判决**（`contradictionDetector.ts`）：
-- **reinforce 相互印证** → 合并，权重 +0.3
-- **conflict + keep_new 保留新** → 退役旧事实
-- **conflict + keep_old 保留旧** → 退役新事实
-- **conflict + merge 合并** → 取较长摘要，保留较高权重
-- **conflict + flag 标记** → 留给人审，不自动操作
+### 5.7 Contradiction Detection and Self-Editing
 
-### 5.8 主动遗忘
+**Sampling** (`factContradictionSampler.ts`): Every `MIRROR_CHECK_INTERVAL_TURNS = 20` turns, scan fact pairs in the same subcategory sorted by updatedAt descending; pairs with Jaccard similarity > 0.35 and weight ≥ 1.5 are sent to LLM for judgment.
 
-用户消息含遗忘触发词（"别提了"、"不想聊这个"、"翻篇了"、"忘了"、"换个话题"）时：
+**LLM verdict** (`contradictionDetector.ts`):
+- **reinforce mutual confirmation** → merge, weight +0.3
+- **conflict + keep_new** → retire old fact
+- **conflict + keep_old** → retire new fact
+- **conflict + merge** → take longer summary, keep higher weight
+- **conflict + flag** → leave for human review, no auto action
 
-1. 从消息中提取主题关键词（过滤停用词和触发词）
-2. 对主题做 embedding
-3. 余弦相似度扫描所有活跃事实，threshold > 0.7
-4. 匹配的事实设 `sensitivity: 'avoid'`，不再自动注入提示
+### 5.8 Active Forgetting
 
-### 5.9 记忆回响衰减
+When user messages contain forget triggers ("let's not talk about that", "I don't want to discuss this", "let's move on", "forget it", "change the topic"):
 
-计算记忆对情绪的长期影响时：
+1. Extract topic keywords from the message (filter stop words and triggers)
+2. Embed the topic
+3. Cosine-scan all active facts, threshold > 0.7
+4. Matched facts get `sensitivity: 'avoid'` — no longer auto-injected into prompts
+
+### 5.9 Memory Echo Decay
+
+When computing long-term emotional impact of memories:
 
 ```typescript
 w = fact.emotionalContext.intensity × e^(-λ×days) × fact.selfRelevance × (fact.weight / 3)
 ```
 
-回响值限制在 `[-MEMORY_ECHO_CAP, +MEMORY_ECHO_CAP] = [-2.0, +2.0]`。
+Echo values are clamped to `[-MEMORY_ECHO_CAP, +MEMORY_ECHO_CAP] = [-2.0, +2.0]`.
 
-### 5.10 参数汇总
+### 5.10 Parameter Summary
 
-| 参数 | 值 | 用途 |
-|------|-----|------|
-| `CONSOLIDATED_DECAY_LAMBDA` | 0.003 | 整合洞察衰减率 |
-| `CORE_MEMORY_MAX_COUNT` | 12 | 核心记忆上限 |
-| `CORE_MEMORY_WEIGHT_THRESHOLD` | 3.0 | 自动升级为核心 |
-| `FACT_DEDUP_WEIGHT_BOOST` | 0.5 | 去重合并增益 |
-| `AUTO_COMPACT_RETENTION_DAYS` | 30 | 退役后保留天数 |
-| `AUTO_RETIRE_CHECK_INTERVAL` | 10 | 退役检查间隔（轮） |
-| `RECENCY_BOOST_WINDOW_HOURS` | 4 | 近因窗口（小时） |
-| `RECENCY_BOOST_FACTOR` | 1.8 | 近因提升乘数 |
-| `CONTRADICTION_SIMILARITY_THRESHOLD` | 0.35 | 矛盾检测阈值 |
-| `CONSOLIDATION_INSIGHT_WEIGHT` | 4.0 | 整合洞察权重 |
-| `CONSOLIDATION_INTERVAL_TURNS` | 30 | 整合间隔（轮） |
-| `MEMOIR_TRUST_FLOOR` | 25 | 记忆信任下限 |
-| `EMBEDDING_DEDUP_THRESHOLD` | 0.85 | 嵌入去重阈值 |
-| `MEMORY_ECHO_CAP` | 2.0 | 记忆回响上限 |
-
----
-
-## 6. 记忆 Tier 体系
-
-| Tier | 内容 | 注入策略 | 来源 |
-|------|------|----------|------|
-| **Tier A** | 伴侣当前状态（心情、自我认知） | 每轮注入 | `companion/self.md` |
-| **Tier B** | 检索到的记忆事实 | 按相关性 + 预算 | `retriever.ts` |
-| **Canon** | Ackem 人设（不可改写） | 每轮注入 | `canon/ackemCanon.ts` |
-
-Tier B 受严格预算控制（`TIER_B_CHAR_BUDGET`），超出部分截断。这是「检索后注入」原则的技术保障。
+| Parameter | Value | Purpose |
+|-----------|-------|---------|
+| `CONSOLIDATED_DECAY_LAMBDA` | 0.003 | Consolidated insight decay rate |
+| `CORE_MEMORY_MAX_COUNT` | 12 | Core memory cap |
+| `CORE_MEMORY_WEIGHT_THRESHOLD` | 3.0 | Auto-promote to core |
+| `FACT_DEDUP_WEIGHT_BOOST` | 0.5 | Dedup merge gain |
+| `AUTO_COMPACT_RETENTION_DAYS` | 30 | Post-retirement retention days |
+| `AUTO_RETIRE_CHECK_INTERVAL` | 10 | Retirement check interval (turns) |
+| `RECENCY_BOOST_WINDOW_HOURS` | 4 | Recency window (hours) |
+| `RECENCY_BOOST_FACTOR` | 1.8 | Recency boost multiplier |
+| `CONTRADICTION_SIMILARITY_THRESHOLD` | 0.35 | Contradiction detection threshold |
+| `CONSOLIDATION_INSIGHT_WEIGHT` | 4.0 | Consolidated insight weight |
+| `CONSOLIDATION_INTERVAL_TURNS` | 30 | Consolidation interval (turns) |
+| `MEMOIR_TRUST_FLOOR` | 25 | Memory trust floor |
+| `EMBEDDING_DEDUP_THRESHOLD` | 0.85 | Embedding dedup threshold |
+| `MEMORY_ECHO_CAP` | 2.0 | Memory echo cap |
 
 ---
 
-## 7. 修改指南
+## 6. Memory Tier System
 
-| 你想… | 先看 |
-|--------|------|
-| 新增一种用户意图关键词 | `interpreter.ts` 规则表 |
-| 改记忆召回策略（权重/阈值） | `retriever.ts` + `ackemParams.ts` |
-| 改记忆写入逻辑 | `ingest.ts` + `factExtractor.ts` |
-| 改关联扩散算法 | `associationColdStart.ts` + `associationIndex.ts` |
-| 改导入格式 | `documentImport/` |
-| 改写入 LLM 提取的 prompt | `prompt/memory-fact-extract.ts` |
-| 改全文本搜索行为 | SQLite FTS5 schema (`db/repos/fts.ts`) |
-| 改衰减速率（λ） | `taxonomy.ts` 的 `CATEGORY_META.decayLambda` |
-| 改自动退役天数 | `taxonomy.ts` 的 `CATEGORY_META.autoRetireDays` |
-| 改整合策略 | `autoConsolidationPolicy.ts` + `consolidator.ts` |
-| 改矛盾检测阈值 | `factContradictionSampler.ts` + `ackemParams.ts` |
-| 改核心记忆上限 | `ackemParams.ts` 的 `CORE_MEMORY_MAX_COUNT` |
+| Tier | Content | Injection strategy | Source |
+|------|---------|-------------------|--------|
+| **Tier A** | Companion current state (mood, self-perception) | Every turn | `companion/self.md` |
+| **Tier B** | Retrieved memory facts | By relevance + budget | `retriever.ts` |
+| **Canon** | Ackem persona (non-rewritable) | Every turn | `canon/ackemCanon.ts` |
 
-**改参数优先改 `ackemParams.ts`**，不要在各模块内联魔法数字。
+Tier B is strictly budget-controlled (`TIER_B_CHAR_BUDGET`); overflow is truncated. This is the technical guarantee of the "retrieve-then-inject" principle.
 
 ---
 
-## 8. 相关文档
+## 7. Modification Guide
 
-| 文档 | 内容 |
-|------|------|
-| [02-heart-system.md](./02-heart-system.md) | Event 如何驱动关系/情绪 |
-| [04-neural-system.md](./04-neural-system.md) | L0/L4 如何消费 Embedding |
-| [06-time-system.md](./06-time-system.md) | L4 检索时间调制、时间锚点检索 |
-| [00-overall-system.md](./00-overall-system.md) | 全对话链路 |
-| [ai-context-and-retrieval-policy.md](../../ai-context-and-retrieval-policy.md) | 记忆注入策略与隐私承诺 |
+| If you want to… | Start with |
+|-----------------|------------|
+| Add a new user-intent keyword | `interpreter.ts` rule tables |
+| Change memory recall strategy (weights/thresholds) | `retriever.ts` + `ackemParams.ts` |
+| Change memory write logic | `ingest.ts` + `factExtractor.ts` |
+| Change association diffusion algorithm | `associationColdStart.ts` + `associationIndex.ts` |
+| Change import format | `documentImport/` |
+| Change write-path LLM extraction prompts | `prompt/memory-fact-extract.ts` |
+| Change full-text search behavior | SQLite FTS5 schema (`db/repos/fts.ts`) |
+| Change decay rate (λ) | `taxonomy.ts` → `CATEGORY_META.decayLambda` |
+| Change auto-retire days | `taxonomy.ts` → `CATEGORY_META.autoRetireDays` |
+| Change consolidation strategy | `autoConsolidationPolicy.ts` + `consolidator.ts` |
+| Change contradiction detection threshold | `factContradictionSampler.ts` + `ackemParams.ts` |
+| Change core memory cap | `ackemParams.ts` → `CORE_MEMORY_MAX_COUNT` |
 
-*脑系统 · Ackem v1.0.0 · 2026-06*
+**Prefer changing `ackemParams.ts` for parameters** — do not inline magic numbers in modules.
+
+---
+
+## 8. Related Documentation
+
+| Document | Content |
+|----------|---------|
+| [02-heart-system.md](./02-heart-system.md) | How Events drive relationship/emotion |
+| [04-neural-system.md](./04-neural-system.md) | How L0/L4 consume Embedding |
+| [06-time-system.md](./06-time-system.md) | L4 retrieval temporal modulation, temporal anchor retrieval |
+| [00-overall-system.md](./00-overall-system.md) | Full conversation pipeline |
+| [ai-context-and-retrieval-policy.md](../../ai-context-and-retrieval-policy.md) | Memory injection policy and privacy commitments |
+
+*Brain System · Ackem v1.0.0 · 2026-06*

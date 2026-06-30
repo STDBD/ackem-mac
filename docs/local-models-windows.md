@@ -1,5 +1,7 @@
 # Local Models on Windows
 
+> **Language:** English · [中文](./local-models-windows.zh.md)
+
 > **Product**: Ackem v1.0.0  
 > **Applies to**: Users who want to run LLM inference locally instead of using a cloud API.
 

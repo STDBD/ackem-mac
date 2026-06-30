@@ -1,64 +1,66 @@
-# 索引与规模 · Indexing & Scale
+# Indexing & Scale
 
-> **产品**：Ackem v1.0.0  
-> **读者**：长期用户、记忆量大的使用者
+> **Language:** English · [中文](./indexing-and-scale.zh.md)
 
----
-
-## 1. `_derived/` 是什么
-
-`data/_derived/` 存放 **可重建的派生索引**：
-
-| 内容 | 说明 | 可重建 |
-|------|------|--------|
-| 向量缓存 (Embedding) | 记忆事实的向量表示，用于语义搜索 | ✅ 点击"重建索引" |
-| FTS 索引 | SQLite FTS5 全文搜索索引 | ✅ 自动维护 |
-| 关联图缓存 | 记忆关联的图结构缓存 | ✅ 自动重建 |
-
-这些文件不包含原始数据，只包含加速检索所需的派生结构。删除后不会丢失任何记忆，仅首次检索会变慢。
+> **Product:** Ackem v1.0.0  
+> **Audience:** Long-term users with large memory libraries
 
 ---
 
-## 2. 重建索引
+## 1. What is `_derived/`?
 
-在 **设置 → 记忆** 中点击"重建索引"将：
+`data/_derived/` stores **rebuildable derived indexes**:
 
-1. 清空 `fact_embeddings` 表
-2. 重新计算所有事实的向量 Embedding（需 ONNX Runtime 可用）
-3. 重建 FTS5 索引
-4. 重建记忆关联图
+| Content | Description | Rebuildable |
+|---------|-------------|-------------|
+| Vector cache (embeddings) | Vector representations of memory facts for semantic search | ✅ “Rebuild index” in Settings |
+| FTS index | SQLite FTS5 full-text index | ✅ Maintained automatically |
+| Association graph cache | Cached graph structure for memory links | ✅ Rebuilt automatically |
 
-重建期间聊天功能不受影响，但语义检索可能暂时降级为 TF-IDF。
-
----
-
-## 3. 规模预期
-
-| 数据量 | 预期表现 |
-|--------|----------|
-| < 10,000 条事实 | FTS 毫秒级，语义搜索 < 100ms |
-| 10,000–50,000 条事实 | FTS 毫秒级，语义搜索 < 500ms |
-| > 50,000 条事实 | 检索可能变慢，建议重建索引 |
-| 单个 Markdown 导入 > 10MB | 导入耗时可能 > 30s，建议拆分文件 |
+These files are not source data. Deleting them loses no memories — only the first search after deletion may be slower.
 
 ---
 
-## 4. 版本兼容性
+## 2. Rebuild index
 
-| 场景 | 行为 |
-|------|------|
-| 新版 Ackem 读取旧版 `_derived/` | 自动重建不兼容的派生索引 |
-| 旧版 Ackem 读取新版 `_derived/` | 不保证兼容，建议删除 `_derived/` 让新版重建 |
-| SQLite schema 版本不匹配 | 自动迁移（V1→V10），`_derived/` 可能需重建 |
+**Settings → Memory → Rebuild index** will:
+
+1. Clear the `fact_embeddings` table  
+2. Recompute embeddings for all facts (requires ONNX Runtime)  
+3. Rebuild the FTS5 index  
+4. Rebuild the memory association graph  
+
+Chat continues during rebuild; semantic search may temporarily fall back to TF-IDF.
 
 ---
 
-## 5. 相关文档
+## 3. Scale expectations
 
-| 文档 | 内容 |
-|------|------|
-| [memory-format.md](./memory-format.md) | 数据目录结构 |
-| [ai-context-and-retrieval-policy.md](./ai-context-and-retrieval-policy.md) | 检索策略 |
-| [architecture/07-data-layer.md](./developer/architecture/07-data-layer.md) | 迁移策略 |
+| Data volume | Expected behavior |
+|-------------|-------------------|
+| < 10,000 facts | FTS in milliseconds; semantic search < 100 ms |
+| 10,000–50,000 facts | FTS in milliseconds; semantic search < 500 ms |
+| > 50,000 facts | Search may slow; rebuild index recommended |
+| Single Markdown import > 10 MB | Import may take > 30 s; split large files |
 
-*Indexing & Scale · Ackem v1.0.0 · 2026-06*
+---
+
+## 4. Version compatibility
+
+| Scenario | Behavior |
+|----------|----------|
+| New Ackem reads old `_derived/` | Rebuilds incompatible derived indexes |
+| Old Ackem reads new `_derived/` | Not guaranteed; delete `_derived/` and let new version rebuild |
+| SQLite schema mismatch | Auto-migration (V1→V10); `_derived/` may need rebuild |
+
+---
+
+## 5. Related docs
+
+| Doc | Topic |
+|-----|-------|
+| [memory-format.md](./memory-format.md) | Data layout |
+| [ai-context-and-retrieval-policy.md](./ai-context-and-retrieval-policy.md) | Retrieval policy |
+| [developer/architecture/07-data-layer.md](./developer/architecture/07-data-layer.md) | Migrations |
+
+*Indexing & Scale · Ackem v1.0.0*

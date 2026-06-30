@@ -1,40 +1,42 @@
-# 感知能力 · Perception Capabilities
+# Perception Capabilities
 
-> **产品**：Ackem v1.0.0  
-> **说明**：当前版本中感知能力分散在各功能模块中，没有统一的「感知层」设置面板。
+> **Language:** English · [中文](./perception-layer.zh.md)
 
----
-
-## 现有的感知能力
-
-| 能力 | 状态 | 开启方式 |
-|------|------|----------|
-| **桌宠窗口** | 预览（几何光球，非 Live2D） | 设置 → 陪伴与感知 → 桌宠开关 |
-| **媒体感知** | 预览（基础 SMTC 读取） | 设置 → 陪伴与感知 → 刷新检测当前媒体 |
-| **前台窗口** | 已注册（默认关闭） | 无独立 UI 开关，extension 内部启用 |
-| **语音输入/播报** | 取决于语音服务配置 | 设置 → 模型与 API → 语音服务 |
-| **剪贴板读取** | **未实装（占位）** | — |
-| **屏幕截图** | **未实装** | — |
-| **系统通知接入** | **未实装** | — |
-| **扩展网络访问** | 扩展加载后逐项授权 | 安装扩展时自动提示 |
+> **Product:** Ackem v1.0.0  
+> **Note:** In v1.0.0, perception features are spread across modules; there is no single unified “perception panel” yet.
 
 ---
 
-## 设计方向
+## Current capabilities
 
-Ackem 对操作系统和用户环境的访问遵循以下原则（将在后续版本中逐步完善统一管理界面）：
-
-- **默认关闭** — 安装后不主动启用任何感知能力
-- **逐项授权** — 每项能力独立开关
-- **拒绝不降级聊天** — 关闭感知能力不影响基础对话
+| Capability | Status | How to enable |
+|------------|--------|---------------|
+| **Desktop pet window** | Preview (geometric orb, not full Live2D) | Settings → Companion & perception → Desktop pet |
+| **Media awareness** | Preview (basic SMTC read) | Settings → Companion & perception → Refresh media detection |
+| **Foreground window** | Registered (off by default) | No standalone UI; enabled inside extensions |
+| **Voice in/out** | Depends on voice-service config | Settings → Model & API → Voice service |
+| **Clipboard read** | **Not implemented (placeholder)** | — |
+| **Screenshots** | **Not implemented** | — |
+| **System notifications** | **Not implemented** | — |
+| **Extension network** | Per-extension consent after load | Prompt on install |
 
 ---
 
-## 相关文档
+## Design principles
 
-| 文档 | 内容 |
-|------|------|
-| [sensitive-capabilities.md](./sensitive-capabilities.md) | 高敏能力补充清单 |
-| [privacy-and-data.md](./privacy-and-data.md) | 数据处理说明 |
+Ackem follows these rules for OS/environment access (unified UI planned):
 
-*Perception Capabilities · Ackem v1.0.0 · 2026-06*
+- **Off by default** — no perception runs until you enable it  
+- **Opt-in per capability** — separate toggles where available  
+- **Chat still works** — disabling perception does not break basic conversation  
+
+---
+
+## Related docs
+
+| Doc | Topic |
+|-----|-------|
+| [sensitive-capabilities.md](./sensitive-capabilities.md) | High-sensitivity capability list |
+| [privacy-and-data.md](./privacy-and-data.md) | Data handling |
+
+*Perception Capabilities · Ackem v1.0.0*

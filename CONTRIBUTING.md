@@ -1,48 +1,51 @@
-# 贡献指南 · Contributing Guide
+# Contributing Guide
 
-> 欢迎为 Ackem 贡献！本文档涵盖开发环境、构建、测试与代码规范。
+> **Language:** English · [中文](./CONTRIBUTING.zh.md)
 
----
-
-## 欢迎的贡献
-
-- Bug 修复与回归测试
-- 文档（README、架构、memory-format、扩展协议）
-- 官方扩展：经 OpenForU `u/` 本机验证后，PR 到 `ackem/` 内置目录
-- 国际化（i18n）与无障碍改进
-- 性能与安全修复
-
-## 暂不接收
-
-- 未在 Issue 中讨论的大型架构重写
-- 含 API Key、`.env`、私人 `data/` 的 PR
-- 试图启用已关闭的 `community/` 市场流水线（v1.0.0 政策见扩展协议）
+Welcome to Ackem! This guide covers development setup, build, testing, and code conventions.
 
 ---
 
-## 1. 开发环境要求
+## Welcome contributions
 
-| 工具 | 版本要求 | 说明 |
+- Bug fixes and regression tests
+- Documentation (README, architecture, memory-format, extension protocol)
+- Official extensions: validate locally with OpenForU `u/`, then PR to built-in `ackem/`
+- Internationalization (i18n) and accessibility improvements
+- Performance and security fixes
+
+## Not accepted (for now)
+
+- Large architectural rewrites not discussed in an Issue
+- PRs containing API keys, `.env`, or private `data/`
+- PRs that try to enable the closed `community/` marketplace pipeline (see extension protocol for v1.0.0 policy)
+
+---
+
+## 1. Development requirements
+
+| Tool | Version | Notes |
 |------|----------|------|
-| **Node.js** | >= 20.x | 推荐 v22 LTS |
-| **npm** | >= 10.x | 随 Node.js 分发 |
-| **Git** | >= 2.40 | 版本管理 |
-| **OS** | Windows 10+ | 当前仅支持 Windows 桌面 |
+| **Node.js** | >= 20.x | v22 LTS recommended |
+| **npm** | >= 10.x | Bundled with Node.js |
+| **Git** | >= 2.40 | Version control |
+| **OS** | Windows 10+ | Desktop support is Windows-only for now |
 
-> 注意：Ackem 当前为 Windows 原生应用，macOS/Linux 构建尚未验证。
+> Ackem is currently a native Windows app; macOS/Linux builds are not verified.
 
-### 可选依赖
+### Optional dependencies
 
-| 工具 | 用途 | 安装方式 |
+| Tool | Purpose | Install |
 |------|------|----------|
-| **ONNX Runtime** | Embedding 模型推理 | npm 自动安装 `onnxruntime-node` |
-| **Python 3.10+** | 语音服务（TTS/STT） | 系统安装，需在设置中配置路径 |
+| **ONNX Runtime** | Embedding inference | `npm install onnxruntime-node` |
+| **Python 3.10+** | Voice service (TTS/STT) | System install; configure path in Settings |
+| **Ollama / LM Studio** | Local LLM inference | External install |
 
 ---
 
-## 2. 搭建开发环境
+## 2. Development setup
 
-### 克隆与安装
+### Clone and install
 
 ```bash
 git clone https://github.com/JasonLiu0826/Ackem.git
@@ -50,9 +53,9 @@ cd Ackem
 npm ci
 ```
 
-### 配置 LLM
+### Configure LLM
 
-Ackem 需要用户自备 LLM API Key。在应用设置界面配置，或编辑 `data/ackem-app-settings.json`：
+Ackem requires your own LLM API key. Configure in Settings or edit `data/ackem-app-settings.json`:
 
 ```json
 {
@@ -65,214 +68,214 @@ Ackem 需要用户自备 LLM API Key。在应用设置界面配置，或编辑 `
 }
 ```
 
-### 启动开发模式
+### Start dev mode
 
 ```bash
 npm run dev
 ```
 
-这将：
-1. 启动 electron-vite dev server（主进程 + 渲染进程 + preload）
-2. 自动打开 Electron 窗口
-3. 文件变更时自动重载
+This will:
+1. Start electron-vite dev server (main + renderer + preload)
+2. Open an Electron window automatically
+3. Hot reload on file changes
 
-首次启动会自动创建 `data/` 目录结构并初始化 SQLite 数据库。
+First launch creates the `data/` directory and initializes SQLite.
 
-> 渲染进程依赖 preload 注入的 `window.ackem` API，必须在 Electron 环境中运行，无法独立在浏览器中打开。
+> The renderer depends on preload-injected `window.ackem`; it must run in Electron, not a standalone browser.
 
 ---
 
-## 3. 项目结构
+## 3. Project structure
 
 ```
 ackem/
 ├── src/
-│   ├── main/              # 主进程（Node.js）
-│   │   ├── index.ts       #   入口：窗口创建 + IPC 注册
-│   │   ├── engine/        #   脑 + 心 + 时间系统
-│   │   ├── memory/        #   L4 记忆系统
-│   │   ├── prompt/        #   嘴系统（Prompt 模板）
-│   │   ├── extensions/    #   扩展系统
-│   │   ├── db/            #   数据层（SQLite + Repository）
-│   │   ├── ipc/           #   IPC handler 实现
-│   │   ├── companion/     #   陪伴模式
-│   │   ├── canon/         #   人设系统
-│   │   ├── embedding/     #   嵌入就绪态管理
-│   │   └── context.ts     #   运行时上下文组装
-│   ├── renderer/          # 渲染进程（React）
-│   ├── preload/           # preload 桥
-│   └── shared/            # 类型共享
-├── data/                  # 运行数据目录（gitignored）
-├── dist/                  # 构建输出（gitignored）
-├── release/               # 打包输出
-├── resources/             # 应用资源（图标、模型）
-├── docs/                  # 文档
-└── package.json           # 依赖与脚本
+│   ├── main/              # Main process (Node.js)
+│   │   ├── index.ts       #   Entry: window + IPC registration
+│   │   ├── engine/        #   Brain + heart + time systems
+│   │   ├── memory/        #   L4 memory system
+│   │   ├── prompt/        #   Mouth system (prompt templates)
+│   │   ├── extensions/    #   Extension system
+│   │   ├── db/            #   Data layer (SQLite + repositories)
+│   │   ├── ipc/           #   IPC handler implementations
+│   │   ├── companion/     #   Companion mode
+│   │   ├── canon/         #   Persona system
+│   │   ├── embedding/     #   Embedding readiness management
+│   │   └── context.ts     #   Runtime context assembly
+│   ├── renderer/          # Renderer (React)
+│   ├── preload/           # Preload bridge
+│   └── shared/            # Shared types
+├── data/                  # Runtime data (gitignored)
+├── dist/                  # Build output (gitignored)
+├── release/               # Package output
+├── resources/             # App assets (icons, models)
+├── docs/                  # Documentation
+└── package.json           # Dependencies and scripts
 ```
 
-详细目录地图见 [docs/developer/architecture/00-overall-system.md](./docs/developer/architecture/00-overall-system.md)。
+Full directory map: [docs/developer/architecture/00-overall-system.md](./docs/developer/architecture/00-overall-system.md) · Chinese: [00-overall-system.zh.md](./docs/developer/architecture/00-overall-system.zh.md)
 
 ---
 
-## 4. 开发工作流
+## 4. Development workflow
 
-### 主进程开发（引擎/数据层/IPC）
+### Main process (engine / data / IPC)
 
-源码：`src/main/{engine,memory,db,ipc,...}`
+Source: `src/main/{engine,memory,db,ipc,...}`
 
-- 修改引擎逻辑后重启 Electron 窗口即可生效
-- 使用 `logger.ts` 输出结构化日志
-- 使用 `engine/tracer.ts` 进行单轮决策追踪
+- Restart the Electron window after engine changes
+- Use `logger.ts` for structured logs
+- Use `engine/tracer.ts` for per-turn decision tracing
 
-### 渲染进程开发（UI）
+### Renderer (UI)
 
-源码：`src/renderer/`
+Source: `src/renderer/`
 
-- 渲染进程热重载（HMR），修改即生效
-- 通过 `window.ackem.*` 调用主进程 API
+- Renderer hot reload (HMR)
+- Call main process via `window.ackem.*`
 
-### 扩展开发
+### Extension development
 
-- [扩展开发协议](./docs/developer/DEVELOPER-EXTENSION-PROTOCOL.md)
-- Skill：在 `extensions/skills/` 下实现 `ExtensionSkill`
-- Plugin：实现 `ExtensionPlugin`，UI 使用 Surface 窗口
-- OpenForU：用户级扩展，在 `data/openforu/` 中用 `u/` 命名空间开发，稳定后 PR 到内置目录
+- [Extension protocol](./docs/developer/DEVELOPER-EXTENSION-PROTOCOL.md) · [中文](./docs/developer/DEVELOPER-EXTENSION-PROTOCOL.zh.md)
+- Skill: implement `ExtensionSkill` under `extensions/skills/`
+- Plugin: implement `ExtensionPlugin`; UI via Surface windows
+- OpenForU: user extensions under `data/openforu/` with `u/` namespace; PR to built-ins when stable
 
 ---
 
-## 5. 构建
+## 5. Build
 
-### 开发构建
+### Dev build
 
 ```bash
 npm run build
 ```
 
-编译主进程 + 渲染进程 + preload 到 `dist/`。
+Compiles main + renderer + preload to `dist/`.
 
-### 生产打包
+### Production package
 
 ```bash
 npm run build:win
 ```
 
-使用 electron-builder + NSIS 打包为 Windows 安装程序。输出位置：`release/Ackem-{version}-win-x64/`
+Uses electron-builder + NSIS for a Windows installer. Output: `release/Ackem-{version}-win-x64/`
 
-### 构建注意事项
+### Build notes
 
-| 问题 | 解决 |
+| Issue | Fix |
 |------|------|
-| 构建内存不足 | `NODE_OPTIONS=--max-old-space-size=8192` |
-| `better-sqlite3` 原生模块 | electron-vite 自动处理重编译 |
-| `onnxruntime-node` 可选 | 缺失不影响构建，仅 Embedding 降级 |
-| 杀软误报 | 绿色版可绕过 NSIS 误报 |
+| Out of memory | `NODE_OPTIONS=--max-old-space-size=8192` |
+| `better-sqlite3` native module | electron-vite handles rebuild |
+| `onnxruntime-node` optional | Missing is OK; embedding degrades |
+| AV false positives | Portable build avoids some NSIS flags |
 
 ---
 
-## 6. 测试
+## 6. Testing
 
-| 命令 | 用途 |
+| Command | Purpose |
 |------|------|
-| `npm test` | 主进程单元测试（LLM mock，离线） |
-| `npm run test:renderer` | 渲染进程关键路径 |
-| `npm run typecheck` | TypeScript 类型检查 |
-| `npm run lint` | ESLint 检查 |
+| `npm test` | Main-process unit tests (LLM mocked, offline) |
+| `npm run test:renderer` | Renderer critical paths |
+| `npm run typecheck` | TypeScript type check |
+| `npm run lint` | ESLint |
 
-### 测试策略
+### Test strategy
 
-| 层 | 方式 | 覆盖内容 |
+| Layer | Method | Coverage |
 |----|------|----------|
-| 引擎核心 | 单元测试 (Vitest) | L0/L1/L2 逻辑、参数计算 |
-| 记忆系统 | 单元测试 | 检索评分、衰减、合并去重 |
-| 数据层 | 集成测试（SQLite 内存） | Repository CRUD、事务、迁移 |
-| 扩展 | 集成测试（mock IPC） | 协议验证、snapshot 构建 |
+| Engine core | Unit tests (Vitest) | L0/L1/L2 logic, parameter math |
+| Memory | Unit tests | Retrieval scoring, decay, merge/dedup |
+| Data layer | Integration (in-memory SQLite) | Repository CRUD, transactions, migrations |
+| Extensions | Integration (mock IPC) | Protocol validation, snapshot build |
 
-实机 LLM E2E 需 API Key，日常 PR 不强制全量 LLM 套件。
+Live LLM E2E requires an API key; not mandatory for every PR.
 
 ---
 
-## 7. 代码规范
+## 7. Code conventions
 
 ### TypeScript
 
-- 严格模式：`strict: true`，`noUncheckedIndexedAccess: true`
-- 禁止 `any`，优先 `unknown`
-- 禁止 `require()`，使用 ESM `import`
-- 文件名：小写驼峰
+- Strict mode: `strict: true`, `noUncheckedIndexedAccess: true`
+- No `any`; prefer `unknown`
+- No `require()`; use ESM `import`
+- Filenames: lowercase camelCase
 
-### 命名
+### Naming
 
-| 类型 | 风格 | 示例 |
+| Kind | Style | Example |
 |------|------|------|
-| 文件/目录 | 小写驼峰 | `emotion.ts`、`factStore.ts` |
-| 函数 | 小写驼峰 | `emotionStep()`、`getDatabase()` |
-| 类型/接口 | PascalCase | `FullState`、`MemoryFact` |
-| 常量 | 大写蛇形 | `TIER_B_CHAR_BUDGET` |
-| Repository | 自由函数 | `loadFactsFromDb()`、`insertFact()` |
+| Files/dirs | lowercase camelCase | `emotion.ts`, `factStore.ts` |
+| Functions | lowercase camelCase | `emotionStep()`, `getDatabase()` |
+| Types/interfaces | PascalCase | `FullState`, `MemoryFact` |
+| Constants | UPPER_SNAKE | `TIER_B_CHAR_BUDGET` |
+| Repositories | Free functions | `loadFactsFromDb()`, `insertFact()` |
 
-### 原则
+### Principles
 
-- **无类**：优先模块内自由函数和纯数据接口
-- **无基类/继承**：组合优于继承
-- **副作用函数**：`dataRoot` 作为首参
-- **注释**：只在 WHY 非显而易见时写
-- **错误处理**：只验证系统边界输入
-- **小步 PR，一事一 PR**
+- **No classes:** prefer module-level free functions and plain data interfaces
+- **No base classes/inheritance:** composition over inheritance
+- **Side-effect functions:** `dataRoot` as first parameter
+- **Comments:** only when WHY is non-obvious
+- **Error handling:** validate only at system boundaries
+- **Small PRs, one concern per PR**
 
-### 提交消息
+### Commit messages
 
 ```
-<type>: <简短描述>
+<type>: <short description>
 
-<可选：详细说明>
+<optional: details>
 ```
 
-类型：`feat:` / `fix:` / `docs:` / `refactor:` / `perf:` / `test:` / `chore:`
+Types: `feat:` / `fix:` / `docs:` / `refactor:` / `perf:` / `test:` / `chore:`
 
 ---
 
-## 8. PR 流程
+## 8. PR workflow
 
-1. Fork 仓库（或作为协作者直接开分支）
-2. 从 `main` 创建特性分支：`fix/...`、`docs/...`、`feat/...`
-3. 确保 `npm test` 全部通过
-4. 提交 PR 到 `main`，说明：动机、变更范围、如何验证
-5. 合并前须同意 [CLA.md](./CLA.md)
+1. Fork (or open a branch as collaborator)
+2. Branch from `main`: `fix/...`, `docs/...`, `feat/...`
+3. Ensure `npm test` passes
+4. Open PR to `main` with motivation, scope, and verification steps
+5. Agree to [CLA.md](./CLA.md) before merge
 
-### PR 审查要点
+### Review checklist
 
-| 检查项 | 说明 |
+| Check | Notes |
 |--------|------|
-| 类型安全 | 无 `any`、无类型断言绕过 |
-| 错误处理 | 系统边界有校验，内部无冗余 try-catch |
-| 性能 | 主路径无阻塞操作，SQLite 查询使用事务 |
-| 兼容性 | schema 变更必须通过迁移版本（V11+） |
-| 文档 | 架构变更同步更新 `docs/developer/architecture/` |
+| Type safety | No `any`, no type-assertion bypasses |
+| Error handling | Validation at boundaries; no redundant try/catch internally |
+| Performance | No blocking on hot paths; SQLite queries use transactions |
+| Compatibility | Schema changes must use migration versions (V11+) |
+| Docs | Architecture changes update `docs/developer/architecture/` |
 
 ---
 
-## 9. 许可证
+## 9. License
 
-提交并被合并的代码以 **AGPL-3.0** 发布；您同时授予维护者在 CLA 中描述的多许可权利。
-
----
-
-## 联系
-
-- 安全问题：[SECURITY.md](./SECURITY.md)
-- 一般讨论：GitHub Issues / Discussions
+Merged code is released under **AGPL-3.0**; you also grant the maintainer multi-license rights described in the CLA.
 
 ---
 
-## 相关资源
+## Contact
 
-| 资源 | 链接 |
+- Security: [SECURITY.md](./SECURITY.md)
+- General discussion: GitHub Issues / Discussions
+
+---
+
+## Related resources
+
+| Resource | Link |
 |------|------|
-| 系统架构 | [docs/developer/architecture/](./docs/developer/architecture/) |
-| 扩展协议 | [docs/developer/DEVELOPER-EXTENSION-PROTOCOL.md](./docs/developer/DEVELOPER-EXTENSION-PROTOCOL.md) |
-| 数据目录格式 | [docs/memory-format.md](./docs/memory-format.md) |
-| AI 检索策略 | [docs/ai-context-and-retrieval-policy.md](./docs/ai-context-and-retrieval-policy.md) |
+| System architecture | [docs/developer/architecture/](./docs/developer/architecture/) |
+| Extension protocol | [docs/developer/DEVELOPER-EXTENSION-PROTOCOL.md](./docs/developer/DEVELOPER-EXTENSION-PROTOCOL.md) |
+| Data directory format | [docs/memory-format.md](./docs/memory-format.md) |
+| AI retrieval policy | [docs/ai-context-and-retrieval-policy.md](./docs/ai-context-and-retrieval-policy.md) |
 
 ---
 
-*Ackem v1.0.0 · 贡献指南*
+*Ackem v1.0.0 · Contributing Guide*

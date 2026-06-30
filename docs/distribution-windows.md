@@ -1,71 +1,73 @@
-# Ackem · Windows 分发说明
+# Ackem · Windows Distribution
 
-> **产品版本**：Ackem **v1.0.0**  
-> **绿色版路径**：`Ackem-v0.0.0\dist\release\Ackem-1.0.0-win-x64\`
+> **Language:** English · [中文](./distribution-windows.zh.md)
+
+> **Product version:** Ackem **v1.0.0**  
+> **Green release path (after build):** `dist/release/Ackem-1.0.0-win-x64/`
 
 ---
 
-## 安装包里有什么、没有什么
+## What is and is not in the package
 
-### 包含
+### Included
 
-| 内容 | 说明 |
+| Item | Description |
+|------|-------------|
+| `Ackem.exe` | Electron main executable |
+| `resources/app.asar` | Compiled application code |
+| `resources/models/` | Embedding models (if shipped) |
+| `resources/voice-service/` | Voice runtime (optional) |
+| `resources/docs/` | Bundled developer doc copy |
+
+### Never included
+
+| Item | Description |
+|------|-------------|
+| User `data/` | Memory, chat, imports, OpenForU |
+| API keys | Entered in Settings after first run |
+| `.env` / dev secrets | Excluded at build time |
+
+---
+
+## Green release steps
+
+1. Download `Ackem-v1.0.0-win-x64.zip` from [GitHub Releases](https://github.com/JasonLiu0826/Ackem/releases) or [Gitee Releases](https://gitee.com/jason_2005/ackem/releases)  
+2. **Extract fully** to an SSD path (do not run inside the zip)  
+3. Double-click `Ackem.exe` or `启动 Ackem.bat`  
+4. First launch ~10–30 s (embedding initialization)  
+5. Configure **Settings → Model & API**: Base URL, API Key, Model ID  
+6. Data lives in `./data/` (portable mode)
+
+See `START.txt` in the release folder.
+
+---
+
+## Data directory
+
+| Mode | Path |
 |------|------|
-| `Ackem.exe` | Electron 主程序 |
-| `resources/app.asar` | 编译后应用代码 |
-| `resources/models/` | Embedding 等（若随包分发） |
-| `resources/voice-service/` | 语音服务运行时（可选启用） |
-| `resources/docs/` | 开发者文档副本 |
+| Portable | `.\data\` |
+| User profile | `%LOCALAPPDATA%\Ackem\` |
 
-### 绝不包含
-
-| 内容 | 说明 |
-|------|------|
-| 用户 `data/` | 记忆、聊天、导入、OpenForU |
-| API Key | 首次运行后在设置中填写 |
-| `.env` / 开发密钥 | 构建已排除 |
+Layout: [memory-format.md](./memory-format.md).
 
 ---
 
-## 使用步骤（绿色版）
+## Uninstall
 
-1. 从 GitHub **Releases** 下载 `Ackem-v1.0.0-win-x64.zip`（或当前构建 zip）  
-2. **完整解压** 到 SSD 目录（勿在 zip 内直接运行）  
-3. 双击 `Ackem.exe` 或 `启动 Ackem.bat`  
-4. 首次启动 10–30 秒（embedding 初始化）  
-5. **设置** 中配置 Base URL、API Key、模型 ID  
-6. 数据保存在 `./data/`（便携模式）
-
-详见同目录 `START.txt`。
+- Portable: delete the folder, or run `Uninstall Ackem.bat`  
+- Uninstall **does not upload** your data; delete `data/` to wipe local memory  
 
 ---
 
-## 数据目录
+## Source vs release
 
-| 模式 | 路径 |
-|------|------|
-| 便携 | `.\data\` |
-| 用户目录 | `%LOCALAPPDATA%\Ackem\` |
+| | Source repo | Green release |
+|---|-------------|---------------|
+| Path | Repository root (after clone) | `dist/release/Ackem-1.0.0-win-x64/` |
+| Contents | `src/` TypeScript | `app.asar` compiled output |
+| Node.js required | Yes (development) | No (end users) |
 
-结构见 [memory-format.md](./memory-format.md)。
-
----
-
-## 卸载
-
-- 便携版：删除文件夹；或运行 `Uninstall Ackem.bat`  
-- 卸载 **不会** 上传你的数据；删除 `data/` 才会清除本地记忆  
-
----
-
-## 源码 vs 发行包
-
-| | 源码仓库 | 绿色版 |
-|---|----------|--------|
-| 路径 | `Ackem-v0.0.0/`（GitHub） | `dist/release/Ackem-1.0.0-win-x64/` |
-| 内容 | `src/` TypeScript | `app.asar` 编译产物 |
-| 需要 Node | 是（开发） | 否（用户） |
-
-路径总览：[CODEBASE-PATHS.md](./CODEBASE-PATHS.md)
+Overview: [CODEBASE-PATHS.md](./CODEBASE-PATHS.md)
 
 *distribution-windows · Ackem v1.0.0*

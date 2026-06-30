@@ -1,5 +1,7 @@
 # AI Context & Retrieval Policy
 
+> **Language:** English · [中文](./ai-context-and-retrieval-policy.zh.md)
+
 > **Product**: Ackem v1.0.0  
 > **Core promise**: Memory is retrieved and injected — never bulk-dumped into the LLM context.
 

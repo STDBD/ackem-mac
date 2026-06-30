@@ -14,7 +14,7 @@
 
 > **源码**：[GitHub](https://github.com/JasonLiu0826/Ackem) · [Gitee 镜像](https://gitee.com/jason_2005/ackem)  
 > **下载**：[GitHub Releases](https://github.com/JasonLiu0826/Ackem/releases) · [Gitee Releases](https://gitee.com/jason_2005/ackem/releases)  
-> **构建**：`npm run dist:green` → `dist/release/Ackem-1.0.0-win-x64/` · [路径说明](./docs/CODEBASE-PATHS.md)  
+> **构建**：`npm run dist:green` → `dist/release/Ackem-1.0.0-win-x64/` · [路径说明](./docs/CODEBASE-PATHS.zh.md) · [文档语言](./docs/I18N.zh.md)  
 > **状态：** Ackem 目前仍处于**测试与快速迭代**阶段。个人维护，测试覆盖面有限，使用中可能遇到预期之外的情况或细节瑕疵；一般不会出现频繁闪退或严重卡顿，但完善度仍在持续改进。欢迎 [提交 Issue](https://github.com/JasonLiu0826/Ackem/issues) 反馈。
 
 English: [README.md](./README.md) · [Privacy & data](./docs/privacy-and-data.md)
@@ -201,24 +201,27 @@ npm run test:renderer
 
 ## 文档
 
-| 用途 | 中文 | English |
-|------|------|---------|
-| 代码库与产物路径 | — | [docs/CODEBASE-PATHS.md](./docs/CODEBASE-PATHS.md) |
-| 开源文档地图 | — | [docs/OPEN-SOURCE-DOC-MAP.md](./docs/OPEN-SOURCE-DOC-MAP.md) |
-| 扩展开发者协议 | — | [docs/developer/DEVELOPER-EXTENSION-PROTOCOL.md](./docs/developer/DEVELOPER-EXTENSION-PROTOCOL.md) |
-| 开发者环境搭建 | — | [docs/developer/dev-setup.md](./docs/developer/dev-setup.md) |
-| 数据目录格式 | [docs/memory-format.zh.md](./docs/memory-format.zh.md) | [docs/memory-format.md](./docs/memory-format.md) |
-| AI 上下文与检索策略 | [docs/ai-context-and-retrieval-policy.zh.md](./docs/ai-context-and-retrieval-policy.zh.md) | [docs/ai-context-and-retrieval-policy.md](./docs/ai-context-and-retrieval-policy.md) |
-| 隐私与数据处理 | [docs/privacy-and-data.zh.md](./docs/privacy-and-data.zh.md) | [docs/privacy-and-data.md](./docs/privacy-and-data.md) |
-| 本地模型配置 | [docs/local-models-windows.zh.md](./docs/local-models-windows.zh.md) | [docs/local-models-windows.md](./docs/local-models-windows.md) |
-| 成人模式与安全策略 | [docs/adult-and-safety-policy.zh.md](./docs/adult-and-safety-policy.zh.md) | [docs/adult-and-safety-policy.md](./docs/adult-and-safety-policy.md) |
-| 感知能力 | [docs/perception-layer.zh.md](./docs/perception-layer.zh.md) | [docs/perception-layer.md](./docs/perception-layer.md) |
-| 敏感能力 | [docs/sensitive-capabilities.zh.md](./docs/sensitive-capabilities.zh.md) | [docs/sensitive-capabilities.md](./docs/sensitive-capabilities.md) |
-| Windows 分发 | [docs/distribution-windows.zh.md](./docs/distribution-windows.zh.md) | [docs/distribution-windows.md](./docs/distribution-windows.md) |
-| 索引与规模 | — | [docs/indexing-and-scale.md](./docs/indexing-and-scale.md) |
-| 安全策略 | [SECURITY.zh.md](./SECURITY.zh.md) | [SECURITY.md](./SECURITY.md) |
-| 贡献指南 | [CONTRIBUTING.zh.md](./CONTRIBUTING.zh.md) | [CONTRIBUTING.md](./CONTRIBUTING.md) |
-| 行为准则 | [CODE_OF_CONDUCT.zh.md](./CODE_OF_CONDUCT.zh.md) | [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) |
+> **语言：** English（`*.md`）· 中文（`*.zh.md`）— 见 [I18N.zh.md](./docs/I18N.zh.md)
+
+| 用途 | English | 中文 |
+|------|---------|------|
+| 代码库与产物路径 | [CODEBASE-PATHS.md](./docs/CODEBASE-PATHS.md) | [CODEBASE-PATHS.zh.md](./docs/CODEBASE-PATHS.zh.md) |
+| 开源文档地图（维护者） | [OPEN-SOURCE-DOC-MAP.md](./docs/OPEN-SOURCE-DOC-MAP.md) | [OPEN-SOURCE-DOC-MAP.zh.md](./docs/OPEN-SOURCE-DOC-MAP.zh.md) |
+| 扩展开发者协议 | [DEVELOPER-EXTENSION-PROTOCOL.md](./docs/developer/DEVELOPER-EXTENSION-PROTOCOL.md) | [DEVELOPER-EXTENSION-PROTOCOL.zh.md](./docs/developer/DEVELOPER-EXTENSION-PROTOCOL.zh.md) |
+| 开发者环境搭建 | [dev-setup.md](./docs/developer/dev-setup.md) | [dev-setup.zh.md](./docs/developer/dev-setup.zh.md) |
+| 架构索引 | [architecture/README.md](./docs/developer/architecture/README.md) | [architecture/README.zh.md](./docs/developer/architecture/README.zh.md) |
+| 数据目录格式 | [memory-format.md](./docs/memory-format.md) | [memory-format.zh.md](./docs/memory-format.zh.md) |
+| AI 上下文与检索 | [ai-context-and-retrieval-policy.md](./docs/ai-context-and-retrieval-policy.md) | [ai-context-and-retrieval-policy.zh.md](./docs/ai-context-and-retrieval-policy.zh.md) |
+| 隐私与数据处理 | [privacy-and-data.md](./docs/privacy-and-data.md) | [privacy-and-data.zh.md](./docs/privacy-and-data.zh.md) |
+| 本地模型配置 | [local-models-windows.md](./docs/local-models-windows.md) | [local-models-windows.zh.md](./docs/local-models-windows.zh.md) |
+| 成人模式与安全 | [adult-and-safety-policy.md](./docs/adult-and-safety-policy.md) | [adult-and-safety-policy.zh.md](./docs/adult-and-safety-policy.zh.md) |
+| 感知能力 | [perception-layer.md](./docs/perception-layer.md) | [perception-layer.zh.md](./docs/perception-layer.zh.md) |
+| 敏感能力 | [sensitive-capabilities.md](./docs/sensitive-capabilities.md) | [sensitive-capabilities.zh.md](./docs/sensitive-capabilities.zh.md) |
+| Windows 分发 | [distribution-windows.md](./docs/distribution-windows.md) | [distribution-windows.zh.md](./docs/distribution-windows.zh.md) |
+| 索引与规模 | [indexing-and-scale.md](./docs/indexing-and-scale.md) | [indexing-and-scale.zh.md](./docs/indexing-and-scale.zh.md) |
+| 安全策略 | [SECURITY.md](./SECURITY.md) | [SECURITY.zh.md](./SECURITY.zh.md) |
+| 贡献指南 | [CONTRIBUTING.md](./CONTRIBUTING.md) | [CONTRIBUTING.zh.md](./CONTRIBUTING.zh.md) |
+| 行为准则 | [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) | [CODE_OF_CONDUCT.zh.md](./CODE_OF_CONDUCT.zh.md) |
 
 ---
 

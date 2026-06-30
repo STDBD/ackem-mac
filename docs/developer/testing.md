@@ -1,72 +1,75 @@
-# 测试指南 · Testing Guide
+# Testing Guide
 
-> **读者**：PR 作者、贡献者、维护者  
-> **测试框架**：Vitest  
-> **代码版本**：v1.0.0
+> **Language:** English · [中文](./testing.zh.md)
+
+> **Audience:** PR authors, contributors, maintainers  
+> **Test framework:** Vitest  
+> **Code version:** v1.0.0
 
 ---
 
-## 1. 快速命令
+## 1. Quick Commands
 
-| 命令 | 用途 | 预计耗时 |
+| Command | Purpose | Typical duration |
 |------|------|----------|
-| `npm test` | 主进程单元测试 | ~30s |
-| `npm run test:renderer` | 渲染进程测试 | ~30s |
-| `npm run typecheck` | TypeScript 类型检查 | ~20s |
-| `npm test -- --run` | 单次运行（非 watch） | ~30s |
-| `npm test -- --coverage` | 带覆盖率报告 | ~45s |
+| `npm test` | Main-process unit tests | ~30s |
+| `npm run test:renderer` | Renderer tests | ~30s |
+| `npm run typecheck` | TypeScript type check | ~20s |
+| `npm test -- --run` | Single run (non-watch) | ~30s |
+| `npm test -- --coverage` | With coverage report | ~45s |
 
 ---
 
-## 2. 测试策略
+## 2. Testing Strategy
 
 ```
 ┌──────────────────────────────────────────────────┐
-│  引擎核心 (engine/)       单元测试 — 高频         │
-│  L0 interpreter、L2 emotion、L1 relationship      │
-│  参数计算、reunion、psyche 等纯函数逻辑            │
+│  Engine core (engine/)       Unit tests — high    │
+│  L0 interpreter, L2 emotion, L1 relationship      │
+│  Parameter math, reunion, psyche — pure logic     │
 ├──────────────────────────────────────────────────┤
-│  记忆系统 (memory/)       单元测试 — 高频         │
-│  检索评分、衰减计算、合并去重、FTS 查询            │
+│  Memory system (memory/)     Unit tests — high    │
+│  Retrieval scoring, decay, merge/dedup, FTS       │
 ├──────────────────────────────────────────────────┤
-│  数据层 (db/)             集成测试 — 中频         │
-│  Repository CRUD、事务、迁移（内存 SQLite）        │
+│  Data layer (db/)            Integration — medium │
+│  Repository CRUD, transactions, migrations        │
+│  (in-memory SQLite)                               │
 ├──────────────────────────────────────────────────┤
-│  扩展系统 (extensions/)   集成测试 — 中频         │
-│  协议验证、snapshot 构建、Dispatch 路由            │
+│  Extensions (extensions/)    Integration — medium │
+│  Protocol validation, snapshot build, Dispatch      │
 ├──────────────────────────────────────────────────┤
-│  渲染进程 (renderer/)     组件测试 — 低频         │
-│  关键 UI 路径（当前覆盖较少）                       │
+│  Renderer (renderer/)        Component — low      │
+│  Key UI paths (limited coverage today)            │
 └──────────────────────────────────────────────────┘
 ```
 
-### 各层测试要求
+### Requirements by layer
 
-| 层 | 测试方式 | PR 最低要求 |
+| Layer | Approach | Minimum for PRs |
 |----|----------|-------------|
-| 引擎核心 | Vitest 单元测试 | 新逻辑必有对应测试 |
-| 记忆系统 | Vitest 单元测试 | 修改检索/衰减逻辑必有测试 |
-| 数据层 | Vitest + better-sqlite3 内存 | schema 变更必有迁移测试 |
-| 扩展 | Vitest + mock IPC | 协议变更必有验证测试 |
-| UI | 暂缺 | 手动验证关键路径 |
+| Engine core | Vitest unit tests | New logic must have tests |
+| Memory system | Vitest unit tests | Retrieval/decay changes need tests |
+| Data layer | Vitest + better-sqlite3 in memory | Schema changes need migration tests |
+| Extensions | Vitest + mock IPC | Protocol changes need validation tests |
+| UI | Not yet automated | Manual verification of critical paths |
 
 ---
 
-## 3. 编写测试
+## 3. Writing Tests
 
-### 位置
+### Location
 
-测试文件与源码同目录，使用 `.test.ts` 后缀：
+Test files live next to source with a `.test.ts` suffix:
 
 ```
 src/main/engine/
 ├── emotion.ts
-├── emotion.test.ts        ← 同目录测试
+├── emotion.test.ts        ← co-located test
 ├── relationship.ts
-└── relationship.test.ts   ← 同目录测试
+└── relationship.test.ts   ← co-located test
 ```
 
-### 示例
+### Example
 
 ```typescript
 // src/main/engine/emotion.test.ts
@@ -89,7 +92,7 @@ describe('emotionStep', () => {
 })
 ```
 
-### 数据层测试（内存 SQLite）
+### Data layer tests (in-memory SQLite)
 
 ```typescript
 // src/main/db/repos/memoryFacts.test.ts
@@ -101,7 +104,7 @@ describe('memoryFacts repo', () => {
   let db: Database.Database
   beforeAll(() => {
     db = new Database(':memory:')
-    // 运行迁移
+    // run migrations
   })
 
   it('should insert and retrieve a fact', () => {
@@ -114,22 +117,22 @@ describe('memoryFacts repo', () => {
 
 ---
 
-## 4. 测试最佳实践
+## 4. Best Practices
 
-| 原则 | 说明 |
+| Principle | Notes |
 |------|------|
-| **纯函数优先** | 引擎核心逻辑应写成纯函数，方便测试 |
-| **mock LLM** | LLM 调用在单元测试中全部 mock，不发起真实 HTTP 请求 |
-| **内存数据库** | 数据层测试使用 `:memory:` SQLite，不依赖文件系统 |
-| **dataRoot 隔离** | 每个测试用例使用独立 `dataRoot` 路径，避免状态污染 |
-| **快照测试谨慎** | 仅在渲染进程 UI 组件使用，大 prompt 快照不适用 |
-| **不要测框架** | 不测 Electron 或 React 框架行为，只测业务逻辑 |
+| **Prefer pure functions** | Engine core logic should be pure functions for easy testing |
+| **Mock LLM** | Mock all LLM calls in unit tests; no real HTTP |
+| **In-memory database** | Data layer tests use `:memory:` SQLite, not the filesystem |
+| **Isolate dataRoot** | Each test case uses its own `dataRoot` to avoid state leakage |
+| **Snapshot tests sparingly** | Use only for renderer UI; large prompt snapshots are not suitable |
+| **Don't test frameworks** | Test business logic, not Electron or React behavior |
 
 ---
 
-## 5. CI 集成
+## 5. CI Integration
 
-推荐 CI 配置（GitHub Actions）：
+Recommended GitHub Actions configuration:
 
 ```yaml
 # .github/workflows/ci.yml
@@ -150,29 +153,29 @@ jobs:
 
 ---
 
-## 6. 实机 E2E 测试
+## 6. Live E2E Testing
 
-完整端到端测试需要 LLM API Key，**不强制 PR 作者运行**：
+Full end-to-end tests require an LLM API key — **PR authors are not required to run them**:
 
 ```bash
-# 需在 data/ackem-app-settings.json 中配置 LLM
-npm run test:e2e    # 若存在
+# Configure LLM in data/ackem-app-settings.json first
+npm run test:e2e    # if present
 ```
 
-维护者会在 Release 前进行以下实机检查：
-1. 启动 → 配置 LLM → 发送消息 → 收到回复
-2. 记忆检索（搜索已知事实是否在 tierB 中出现）
-3. 扩展加载（Skill/Plugin 正确注册）
-4. 绿色版解压即用冒烟测试
+Maintainers run these checks before release:
+1. Launch → configure LLM → send message → receive reply
+2. Memory retrieval (known facts appear in tierB)
+3. Extension loading (Skills/Plugins register correctly)
+4. Portable build smoke test (extract and run)
 
 ---
 
-## 7. 相关文档
+## 7. Related Documentation
 
-| 文档 | 内容 |
+| Document | Content |
 |------|------|
-| [dev-setup.md](./dev-setup.md) | 开发环境搭建 |
-| [release-checklist.md](./release-checklist.md) | 发布检查清单 |
-| [CONTRIBUTING.md](../../CONTRIBUTING.md) | 贡献指南与 PR 流程 |
+| [dev-setup.md](./dev-setup.md) | Development environment setup |
+| [release-checklist.md](./release-checklist.md) | Release checklist |
+| [CONTRIBUTING.md](../../CONTRIBUTING.md) | Contribution guide and PR workflow |
 
 *Testing Guide · Ackem v1.0.0 · 2026-06*

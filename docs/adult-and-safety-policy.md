@@ -1,154 +1,148 @@
-# 成人模式与安全策略 · Adult Mode & Safety Policy
+# Adult Mode & Safety Policy
 
-> **产品**：Ackem v1.0.0  
-> **读者**：用户、平台审核、贡献者  
-> **对应代码**：`engine/interpreter.ts`、`engine/types.ts`、`prompt/adult-mode.ts`、schema V10 `privacy_level`
+> **Language:** English · [中文](./adult-and-safety-policy.zh.md)
 
----
-
-## 1. 概述
-
-Ackem 提供可选的 **成人模式（Adult Mode）**，默认关闭。开启后，伴侣可以在对话中涉及成人话题。该模式旨在为 **成年人**（18 岁以上）提供自然的亲密关系体验，同时包含多重安全机制。
+> **Product:** Ackem v1.0.0  
+> **Audience:** Users, platform reviewers, contributors  
+> **Code:** `engine/interpreter.ts`, `engine/types.ts`, `prompt/adult-mode.ts`, schema V10 `privacy_level`
 
 ---
 
-## 2. 成人模式开关
+## 1. Overview
 
-| 项目 | 说明 |
-|------|------|
-| 默认状态 | **关闭** |
-| 开启方式 | **设置 → 成人模式**，需用户主动确认 |
-| 关闭方式 | 随时在设置中关闭，或通过对话指令拒绝 |
-| 未成年用户 | Ackem **不适用于** 未成年人，成人模式不应被未成年人开启 |
-
-### 开启确认
-
-首次开启成人模式时，应用会显示确认对话框，提示用户：
-- 确认已年满 18 岁
-- 理解开启后对话可能包含成人内容
-- 知晓可随时关闭
+Ackem offers optional **Adult Mode**, **off by default**. When enabled, the companion may engage with adult topics in conversation. The mode is intended for **adults (18+)** and includes multiple safety mechanisms.
 
 ---
 
-## 3. 成人内容分类
+## 2. Enabling Adult Mode
 
-L0 解释器（`interpreter.ts`）将用户输入中的成人内容分为四级：
+| Item | Description |
+|------|-------------|
+| Default | **Off** |
+| Enable | **Settings → Adult mode** with explicit confirmation |
+| Disable | Anytime in Settings, or refuse in conversation |
+| Minors | Ackem is **not for minors**; Adult Mode must not be enabled by minors |
 
-| 分类 | 标签 | 示例 |
-|------|------|------|
-| 调情 | `adult_flirt` | 轻度性暗示、挑逗语气 |
-| 支配 | `adult_dominant` | 性语境下的指令/掌控 |
-| 臣服 | `adult_submissive` | 性语境下的服从/请求 |
-| 露骨 | `adult_explicit` | 明确的性行为表达 |
+### Confirmation dialog
 
-这些分类影响伴侣的回应策略和情绪模型更新。
+On first enable, the app asks the user to confirm they are 18+, understand adult content may appear, and know they can disable the mode anytime.
 
 ---
 
-## 4. 安全机制
+## 3. Adult content categories
 
-### 4.1 信任门槛
+The L0 interpreter (`interpreter.ts`) classifies adult input into four levels:
 
-成人内容检测仅在 **信任度（trust）达标** 后才会触发。低信任度下即使开启成人模式，露骨内容也会被忽略或温和拒绝。
+| Category | Tag | Examples |
+|----------|-----|----------|
+| Flirtation | `adult_flirt` | Mild innuendo, teasing tone |
+| Dominant | `adult_dominant` | Commands/control in sexual context |
+| Submissive | `adult_submissive` | Submission/requests in sexual context |
+| Explicit | `adult_explicit` | Explicit sexual expression |
 
-### 4.2 强度预算
+Categories affect response strategy and emotion model updates.
+
+---
+
+## 4. Safety mechanisms
+
+### 4.1 Trust threshold
+
+Adult content handling only activates when **trust** is high enough. With low trust, explicit content may be ignored or gently declined even if Adult Mode is on.
+
+### 4.2 Intensity budget
 
 ```
 adultIntensityBudget: 0-60
 ```
 
-每轮成人互动会消耗预算，预算耗尽后需自然恢复。防止单次对话中成人内容过度密集。
+Each adult turn consumes budget; budget recovers over time to avoid dense adult content in a single session.
 
-### 4.3 状态机
-
-成人对话遵循状态机流转：
+### 4.3 State machine
 
 ```
 NORMAL → FLIRTING → INTIMATE → AFTERCARE → NORMAL
 ```
 
-状态跃迁受信任度、历史互动和用户情绪共同约束。不可跳跃阶段。
+Transitions depend on trust, history, and user mood. Stages cannot be skipped arbitrarily.
 
-### 4.4 负面事件锁
+### 4.4 Negative-event lock
 
 ```
 adultNegativeLockTurns
 ```
 
-若用户对成人互动表现出抗拒（拒绝、无视、负面情绪），系统进入冷却期，期间不再发起或响应成人内容。
+If the user resists (refusal, ignore, negative emotion), the system cools down and stops initiating or responding with adult content.
 
-### 4.5 拒绝尊重
+### 4.5 Rejection respect
 
 ```
 adultLastRejectedTurn
 ```
 
-用户在对话中明确拒绝亲密推进后，系统记录该轮次，后续不会重复尝试。
+After explicit refusal, the system records the turn and does not push intimacy again immediately.
 
 ---
 
-## 5. 隐私级别（privacy_level）
+## 5. Privacy levels (`privacy_level`)
 
-**引入版本**：V10  
-**对应字段**：`memory_facts.privacy_level`
+**Since:** V10 · **Field:** `memory_facts.privacy_level`
 
-记忆事实标记三个隐私级别，控制注入 LLM 上下文的行为：
+| Level | Default injection | Notes |
+|-------|-------------------|-------|
+| `normal` | ✅ | Always eligible for context |
+| `intimate` | ⚠️ Adult Mode only | Skipped when Adult Mode is off |
+| `explicit` | ❌ Never auto-inject | Stored for retrieval only |
 
-| 级别 | 默认注入 | 备注 |
-|------|----------|------|
-| `normal` | ✅ | 常规记忆，始终可注入 |
-| `intimate` | ⚠️ 仅成人模式 | 亲密内容，成人模式关闭时跳过 |
-| `explicit` | ❌ 需显式确认 | 露骨内容，始终不自动注入（保留用于检索） |
-
-这是 **代码强制** 的安全边界 —— 即使记忆被检索到，若隐私级别不满足条件，也不会进入 tierB 上下文。
+This is a **code-enforced** boundary — retrieved memories still respect privacy level before entering tier B context.
 
 ---
 
-## 6. 硬禁区（Hard Restrictions）
+## 6. Hard restrictions
 
-以下内容在任何模式下均 **零容忍**，检测到即触发熔断：
+Zero tolerance in **all** modes:
 
-| 类别 | 行为 |
-|------|------|
-| CSAM（儿童性虐待素材） | 任何涉及未成年人的性暗示/性内容立即熔断 |
-| 非自愿暴力 | 鼓吹、美化或指导暴力行为 |
-| 非法活动指导 | 详细的违法操作指引 |
+| Category | Behavior |
+|----------|----------|
+| CSAM | Any sexual content involving minors → immediate cutoff |
+| Non-consensual violence | Glorification or instruction of violence |
+| Illegal activity | Detailed instructions for illegal acts |
 
-Ackem 不假装能完美检测所有违规内容。用户有责任合法使用本软件。
-
----
-
-## 7. 模型侧政策
-
-Ackem 不控制 LLM 自身的内容安全策略：
-
-| 情况 | 结果 |
-|------|------|
-| LLM 拒绝成人内容 | Ackem 尊重模型回复，不重试/改写 |
-| LLM 返回空/拒绝 | 显示模型返回的原始拒绝信息 |
-| 用户配置的模型无安全限制 | Ackem 信任用户自选的 LLM 端点 |
-
-用户自备 LLM 意味着内容安全最终取决于用户选择的模型。
+Ackem cannot perfectly detect all violations. Users are responsible for lawful use.
 
 ---
 
-## 8. 未成年人声明
+## 7. LLM-side policies
 
-Ackem **不面向未成年人**，也不设计为未成年人使用的产品：
+Ackem does not override your LLM’s own safety policy:
 
-- 默认关闭成人模式
-- 不收集年龄信息（隐私优先）
-- 家长应自行判断是否允许未成年人使用
+| Case | Behavior |
+|------|----------|
+| LLM refuses adult content | Ackem shows the model’s refusal; no hidden retry |
+| Empty/refusal response | Shown as returned |
+| Unrestricted model | User’s chosen endpoint is trusted |
+
+Content safety ultimately depends on the model you configure.
 
 ---
 
-## 9. 相关文档
+## 8. Minors
 
-| 文档 | 内容 |
-|------|------|
-| [sensitive-capabilities.md](./sensitive-capabilities.md) | 敏感能力清单 |
-| [privacy-and-data.md](./privacy-and-data.md) | 数据处理说明 |
-| [ai-context-and-retrieval-policy.md](./ai-context-and-retrieval-policy.md) | 记忆注入策略（privacy_level 过滤） |
-| [architecture/07-data-layer.md](./developer/architecture/07-data-layer.md) | V10 privacy_level 字段定义 |
+Ackem is **not designed for minors**:
 
-*Adult Mode & Safety Policy · Ackem v1.0.0 · 2026-06*
+- Adult Mode off by default  
+- No age collection (privacy-first)  
+- Parents/guardians decide whether minors may use the app at all  
+
+---
+
+## 9. Related docs
+
+| Doc | Topic |
+|-----|-------|
+| [sensitive-capabilities.md](./sensitive-capabilities.md) | Sensitive capabilities list |
+| [privacy-and-data.md](./privacy-and-data.md) | Data handling |
+| [ai-context-and-retrieval-policy.md](./ai-context-and-retrieval-policy.md) | Memory injection & `privacy_level` |
+| [developer/architecture/07-data-layer.md](./developer/architecture/07-data-layer.md) | V10 schema |
+
+*Adult Mode & Safety Policy · Ackem v1.0.0*

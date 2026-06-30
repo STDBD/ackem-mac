@@ -1,5 +1,7 @@
 # Windows 分发说明
 
+> **语言：** 中文 · [English](./distribution-windows.md)
+
 > **产品版本**：Ackem **v1.0.0**  
 > **绿色版路径**：`dist/release/Ackem-1.0.0-win-x64/`
 

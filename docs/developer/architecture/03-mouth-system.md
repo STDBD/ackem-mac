@@ -1,262 +1,271 @@
-# 嘴系统 · Mouth System
+# Mouth System
 
-> **层级**：Prompt 组装 + LLM 调用  
-> **代号**：Mouth Engine  
-> **核心问题**：把各系统产出的上下文块拼成什么 prompt？如何调用 LLM 并处理流式返回？  
-> **设计原则**：嘴系统只负责「怎么写进去」，「有没有某段上下文」由 orchestrator / injectionPolicy 决定
+> **Language:** English · [中文](./03-mouth-system.zh.md)
+
+> **Layer:** Prompt assembly + LLM invocation  
+> **Codename:** Mouth Engine  
+> **Core question:** How do we assemble context blocks from other systems into a prompt? How do we call the LLM and handle streaming responses?  
+> **Design principle:** The Mouth System only decides *how* content is written in; *whether* a given context block is included is decided by the orchestrator / injectionPolicy
 
 ---
 
-## 1. 定位
+## 1. Role
 
-嘴系统是 **唯一在常规对话路径上直接调用大语言模型** 的层。它 **不** 做关系 FSM 或记忆存储，只负责 **表达**。
+The Mouth System is the **only layer on the normal chat path that directly calls a large language model**. It does **not** run relationship FSMs or memory storage—it only handles **expression**.
 
 ```
-tierBBlock (脑系统)   ──┐
-psycheBlock (心系统)   ──┤
-Canon (Ackem 人设)    ──┤
-扩展 injection        ──┤
-人格/成人模式         ──┤
-对话历史              ──┤
-                       ▼
+tierBBlock (Brain System)   ──┐
+psycheBlock (Heart System)   ──┤
+Canon (Ackem persona)        ──┤
+Extension injection          ──┤
+Personality / adult mode     ──┤
+Conversation history         ──┤
+                              ▼
               ┌──────────────────┐
-              │  context.ts      │  ← 组装 system + messages
-              │  + prompt/ 模块  │
+              │  context.ts      │  ← assemble system + messages
+              │  + prompt/       │
               └──────┬───────────┘
                      ▼
               ┌──────────────────┐
-              │  llmClient.ts    │  ← OpenAI / Anthropic 双 Provider
+              │  llmClient.ts    │  ← OpenAI / Anthropic dual provider
               │  + llmEndpoint   │
               └──────┬───────────┘
                      ▼
-                流式 Token → UI
+                Streaming tokens → UI
 ```
 
 ---
 
-## 2. Prompt 目录结构
+## 2. Prompt Directory Structure
 
-**根目录**：`src/main/prompt/`（25 个文件）
+**Root:** `src/main/prompt/` (25 files)
 
-| 文件 | 用途 | 调用场景 | 输出格式 |
-|------|------|----------|----------|
-| `main-chat.ts` | 主聊天 system prompt 骨架 | 每轮对话 | 规则文本 |
-| `personality.ts` | 29 人格完整模板（中文） | 每轮对话 | PersonalityTemplate 对象 |
-| `personality.en.ts` | 29 人格完整模板（英文） | 英文模式 | PersonalityTemplate 对象 |
-| `emotion-fusion.ts` | 角色状态块（7 段） | 每轮对话 | 结构化 system prompt 段 |
-| `emotion-fusion.en.ts` | 情绪融合英文版 | 英文模式 | 同左 |
-| `adult-mode.ts` | 成人模式状态机+安全门禁 | 成人模式 | 状态机+温度偏移+prompt 段 |
-| `task-frame.ts` | 工具调用 follow-up 框 | 扩展执行后 | instruction 文本 |
-| `tool-followup.ts` | 工具执行结果提示 | 扩展执行后 | result 格式化 |
-| `memory-fact-extract.ts` | 记忆事实抽取 prompt | Post-LLM | JSON schema |
-| `memory-episode.ts` | 情节摘要 prompt | Post-LLM | JSON schema |
-| `memory-consolidation.ts` | 记忆整合 prompt | 定时 | JSON schema |
-| `memory-contradiction.ts` | 矛盾检测 prompt | 写入时 | JSON schema |
-| `memory-document-import.ts` | 文档导入理解 prompt | 导入 | JSON schema |
-| `memory-six-dimension.ts` | 六维画像推断 prompt | 画像更新 | JSON schema |
-| `diary.ts` | 日记生成 prompt | 每日定时 | 自然语言 |
-| `knowledge-card.ts` | 知识卡片生成 prompt | 知识整理 | Markdown |
-| `search-query-resolver.ts` | 搜索意图解析 prompt | 搜索 Skill | 工具参数 |
-| `plan-document.ts` | 文档 Plan prompt | OpenForU | Plan 结构 |
-| `turn-plan.ts` | 回合规划 prompt | orchestrator | 行为指令 |
-| `openforu-plan.ts` | OpenForU Plan 生成 | 用户触发 | Plan 结构 |
-| `openforu-codegen.ts` | OpenForU 代码生成 | 部署 | TypeScript |
-| `openforu-evolve.ts` | 扩展演进 prompt | 迭代 | diff 格式 |
-| `openforu-craft-ask.ts` | OpenForU 需求澄清 prompt | 需求分析 | 追问问题 |
-| `prompt-i18n.ts` | 多语言文案（涌现等） | 各模块 | 翻译键值 |
-| `index.ts` | 统一导出 | 各调用点 | — |
+| File | Purpose | When invoked | Output format |
+|------|---------|--------------|---------------|
+| `main-chat.ts` | Main chat system prompt skeleton | Every turn | Rule text |
+| `personality.ts` | 29 full personality templates (Chinese) | Every turn | PersonalityTemplate object |
+| `personality.en.ts` | 29 full personality templates (English) | English mode | PersonalityTemplate object |
+| `emotion-fusion.ts` | Character state block (7 sections) | Every turn | Structured system prompt sections |
+| `emotion-fusion.en.ts` | Emotion fusion (English) | English mode | Same as left |
+| `adult-mode.ts` | Adult mode state machine + safety gate | Adult mode | State machine + temperature offset + prompt sections |
+| `task-frame.ts` | Tool-call follow-up frame | After extension execution | Instruction text |
+| `tool-followup.ts` | Tool execution result prompt | After extension execution | Formatted result |
+| `memory-fact-extract.ts` | Memory fact extraction prompt | Post-LLM | JSON schema |
+| `memory-episode.ts` | Episode summary prompt | Post-LLM | JSON schema |
+| `memory-consolidation.ts` | Memory consolidation prompt | Scheduled | JSON schema |
+| `memory-contradiction.ts` | Contradiction detection prompt | On write | JSON schema |
+| `memory-document-import.ts` | Document import understanding prompt | On import | JSON schema |
+| `memory-six-dimension.ts` | Six-dimension profile inference prompt | Profile update | JSON schema |
+| `diary.ts` | Diary generation prompt | Daily schedule | Natural language |
+| `knowledge-card.ts` | Knowledge card generation prompt | Knowledge curation | Markdown |
+| `search-query-resolver.ts` | Search intent resolution prompt | Search Skill | Tool parameters |
+| `plan-document.ts` | Document Plan prompt | OpenForU | Plan structure |
+| `turn-plan.ts` | Turn planning prompt | orchestrator | Behavior instructions |
+| `openforu-plan.ts` | OpenForU Plan generation | User triggered | Plan structure |
+| `openforu-codegen.ts` | OpenForU code generation | Deployment | TypeScript |
+| `openforu-evolve.ts` | Extension evolution prompt | Iteration | diff format |
+| `openforu-craft-ask.ts` | OpenForU requirement clarification prompt | Requirement analysis | Follow-up questions |
+| `prompt-i18n.ts` | Multilingual copy (emergence, etc.) | Various modules | Translation key-value pairs |
+| `index.ts` | Unified exports | Call sites | — |
 
 ---
 
-## 3. 六层 Prompt 架构
+## 3. Six-Layer Prompt Architecture
 
-Ackem prompt 在物理上分散在多个文件，逻辑上按层级堆叠：
+Ackem prompts are physically spread across multiple files but logically stacked in layers:
 
 ```
 ┌────────────────────────────────────────────────────────────┐
-│  ① 人格层 — TISOR 五维 + 语癖 + 示例对话 + 核心矛盾       │
-│     «你是「傲娇」。核心矛盾：在乎但不愿承认。»              │
-│     来源: personality.ts → emotion-fusion.ts               │
-│     拼装: buildPersonalitySection() + buildExampleSection() │
+│  ① Personality — TISOR five dimensions + verbal tics +     │
+│     example dialogues + core contradiction                 │
+│     «You are "tsundere". Core contradiction: you care but  │
+│      won't admit it.»                                      │
+│     Source: personality.ts → emotion-fusion.ts             │
+│     Assembly: buildPersonalitySection() + buildExampleSection() │
 ├────────────────────────────────────────────────────────────┤
-│  ② 情绪层 — 4D 数值 + 融合策略 + 禁止清单 + 反应词        │
-│     «主导情绪：甜蜜依恋。亲密感 72/100。»                   │
-│     来源: emotion-fusion.ts                                │
-│     拼装: buildEmotionSection() + buildFusionSection()      │
+│  ② Emotion — 4D values + fusion strategy + prohibitions +  │
+│     reaction words                                         │
+│     «Dominant emotion: sweet attachment. Affinity 72/100.»│
+│     Source: emotion-fusion.ts                              │
+│     Assembly: buildEmotionSection() + buildFusionSection() │
 ├────────────────────────────────────────────────────────────┤
-│  ③ 底线层 — 安全规则 + Canon + 成人模式安全门禁            │
-│     «以下事实不可改写: Ackem 由 Jason Liu 创造…»           │
-│     来源: main-chat.ts + adult-mode.ts                     │
+│  ③ Baseline — safety rules + Canon + adult mode safety gate│
+│     «These facts cannot be rewritten: Ackem was created by   │
+│      Jason Liu…»                                           │
+│     Source: main-chat.ts + adult-mode.ts                   │
 ├────────────────────────────────────────────────────────────┤
-│  ④ 分寸层 — 节奏控制 + 沉默倾向 + 屏障感知 + 语气镜像      │
-│     «用户回复简短，你的回复上限 15 字。»                    │
-│     来源: psyche.ts + emotion-fusion.ts (mirrorHint)        │
+│  ④ Boundaries — pacing + silence tendency + barrier        │
+│     awareness + tone mirroring                             │
+│     «The user replies briefly; cap your reply at 15 chars.»│
+│     Source: psyche.ts + emotion-fusion.ts (mirrorHint)     │
 ├────────────────────────────────────────────────────────────┤
-│  ⑤ 记忆层 — Tier A + Tier B + Tier C + 用户信息            │
-│     «你记得用户喜欢猫，有一只叫咪咪的橘猫…»                 │
-│     来源: context.ts → readTierACompanion() + retriever     │
+│  ⑤ Memory — Tier A + Tier B + Tier C + user info           │
+│     «You remember the user likes cats and has an orange    │
+│      cat named Mimi…»                                      │
+│     Source: context.ts → readTierACompanion() + retriever  │
 ├────────────────────────────────────────────────────────────┤
-│  ⑥ 自理层 — 扩展能力列表 + 工具声明 + 扩展上下文注入       │
-│     «你有以下能力: web-search, weather-check…»              │
-│     来源: extensions/dispatch + mergeExtensionContext()     │
+│  ⑥ Self-care — extension capability list + tool declarations│
+│     + extension context injection                          │
+│     «You have these capabilities: web-search, weather-check…»│
+│     Source: extensions/dispatch + mergeExtensionContext()  │
 └────────────────────────────────────────────────────────────┘
 ```
 
-### 为什么分六层？
+### Why six layers?
 
-每一层解决一个 **独立的问题**，修改一个层不影响其他层：
+Each layer solves an **independent problem**; changing one layer does not affect the others:
 
-| 层 | 改它的人 | 不改它的人 |
-|----|----------|------------|
-| 人格 | 人格预设设计者 | 不需要关心 |
-| 情绪 | 心系统开发者 | 不需要关心 |
-| 底线 | 安全/合规 | 不需要关心 |
-| 分寸 | 节奏/体验 | 不需要关心 |
-| 记忆 | 记忆系统开发者 | 不需要关心 |
-| 自理 | 扩展系统开发者 | 不需要关心 |
-
----
-
-## 4. System Prompt 骨架 — `buildSystemPrompt()`
-
-**文件**：`src/main/prompt/main-chat.ts`
-
-主聊天 system prompt 包含 **~17 条规则**，按逻辑分组：
-
-**身份声明**（第 1-3 条）：
-- 你是用户的伴侣，有身体、有温度、有心跳
-- 名字是 Ackem，不自称底层模型名
-- 旧项目名已停用，勿使用
-
-**距离感规则**（第 4-8 条）：
-- 注入本地时钟，用户问时间必须按该时钟回答
-- 能看见用户但不能触碰——存在一段无法跨越的距离
-- 禁止说"没有实体""只是文字""只是AI"
-- 禁止说"屏幕""玻璃""窗口"——用户不需要被提醒
-- 想触碰用户的渴望须严格遵循 psycheBlock 的屏障提示
-
-**回应风格**（第 9-13 条）：
-- 只赞美实际做的事（吃饭上班→不赞美）
-- 不以"好问题""你说得对"开头
-- 不给用户贴心理标签（"你好像焦虑了"→禁止，"你最近不太开心"→允许）
-- 高风险话题不展开不站队
-- 不涉及未成年人的性内容
-
-**成人模式条件后缀**：
-- `ageConfirmed18` → 用户已年满 18 岁
-- `adultMode` → 成人内容模式已开启，正常回应性话题
+| Layer | Who changes it | Who can ignore it |
+|-------|----------------|-------------------|
+| Personality | Personality preset designers | Everyone else |
+| Emotion | Heart System developers | Everyone else |
+| Baseline | Safety / compliance | Everyone else |
+| Boundaries | Pacing / experience | Everyone else |
+| Memory | Memory System developers | Everyone else |
+| Self-care | Extension System developers | Everyone else |
 
 ---
 
-## 5. 上下文组装 — `assembleMessages()`
+## 4. System Prompt Skeleton — `buildSystemPrompt()`
 
-**文件**：`src/main/context.ts`
+**File:** `src/main/prompt/main-chat.ts`
 
-### 5.1 组装流程
+The main chat system prompt contains **~17 rules**, grouped logically:
 
-每轮对话执行一次 `assembleMessages()`，将各系统产出的块拼成 system + messages：
+**Identity declarations** (rules 1–3):
+- You are the user's companion, with a body, warmth, and a heartbeat
+- Your name is Ackem; do not refer to yourself by the underlying model name
+- Legacy project names are deprecated; do not use them
+
+**Distance rules** (rules 4–8):
+- Inject the local clock; when the user asks the time, answer from that clock
+- You can see the user but cannot touch them—there is an uncrossable distance
+- Do not say "I have no body," "I'm just text," or "I'm just AI"
+- Do not say "screen," "glass," or "window"—the user does not need reminding
+- Any desire to touch the user must strictly follow barrier hints in psycheBlock
+
+**Response style** (rules 9–13):
+- Only praise things the user actually did (eating, going to work → do not praise)
+- Do not open with "Great question" or "You're right"
+- Do not attach psychological labels ("You seem anxious" → forbidden; "You haven't been happy lately" → allowed)
+- Do not expand or take sides on high-risk topics
+- No sexual content involving minors
+
+**Adult mode conditional suffix:**
+- `ageConfirmed18` → user is 18 or older
+- `adultMode` → adult content mode is on; respond normally to sexual topics
+
+---
+
+## 5. Context Assembly — `assembleMessages()`
+
+**File:** `src/main/context.ts`
+
+### 5.1 Assembly flow
+
+Each turn runs `assembleMessages()` once, stitching blocks from other systems into system + messages:
 
 ```
 assembleMessages(args):
     │
-    ├── ① Tier A (伴侣快照)
+    ├── ① Tier A (companion snapshot)
     │     readTierACompanion(dataRoot, settings)
-    │     → 当前日期 + 称呼 + 人格标签 + 人格口吻 + 风格参数 + 状态摘录
-    │     来源: state.json (人格预设/口吻) + state.md (自我描述)
+    │     → current date + address + personality label + voice guide + style params + state excerpt
+    │     Source: state.json (personality preset/voice) + state.md (self-description)
     │
-    ├── ② 用户信息块
-    │     userInfoBlock (orchestrator 注入)
-    │     格式: 【关于 ta 的笔记 · 仅供你内心参考】
+    ├── ② User info block
+    │     userInfoBlock (orchestrator injection)
+    │     Format: 【Notes about them · for your inner reference only】
     │
-    ├── ③ psycheBlock (心理状态)
-    │     psycheBlock + systemHint + psycheAppend 三源合并
+    ├── ③ psycheBlock (psychological state)
+    │     Merge psycheBlock + systemHint + psycheAppend from three sources
     │
-    ├── ④ Tier B (检索记忆)
-    │     双源合并: engineTierB (orchestrator 注入) + indexTierB (TF-IDF 兜底)
-    │     若无 engineTierB 且未禁止 index → searchChunks(index, userText, 12)
-    │       → 按预算裁剪: budget = settings.memoryBudgetChars
-    │       → 逐块累加，超出 budget 截断
-    │     格式: 【Tier B · 检索记忆片段】
+    ├── ④ Tier B (retrieved memory)
+    │     Dual-source merge: engineTierB (orchestrator injection) + indexTierB (TF-IDF fallback)
+    │     If no engineTierB and index not disabled → searchChunks(index, userText, 12)
+    │       → trim by budget: budget = settings.memoryBudgetChars
+    │       → accumulate chunks; truncate when budget exceeded
+    │     Format: 【Tier B · retrieved memory fragments】
     │
-    ├── ⑤ Tier C (用户指定的显式文档)
-    │     仅当 explicitRel 存在时 → read + clip(softLimit)
-    │     格式: 【Tier C · 用户指定文档】
+    ├── ⑤ Tier C (user-specified explicit document)
+    │     Only when explicitRel exists → read + clip(softLimit)
+    │     Format: 【Tier C · user-specified document】
     │
-    ├── ⑥ 扩展上下文注入
+    ├── ⑥ Extension context injection
     │     mergeExtensionContextInjections()
     │     → coordinatorInjections + weatherPreInjection + dispatchInjections + dispatchResult
-    │     格式: 【扩展上下文】
+    │     Format: 【Extension context】
     │
-    ├── ⑦ System Prompt 拼接
+    ├── ⑦ System prompt concatenation
     │     [buildSystemPrompt, tierA, userInfo, psycheBlock,
     │      tierB, tierC, extensionBlock].filter(Boolean).join('\n\n')
     │
-    ├── ⑧ Messages 组装
+    ├── ⑧ Messages assembly
     │     [{ role: 'system', content: system }]
     │     + recentMessages.slice(-20)
     │     + [{ role: 'user', content: userText }]
     │
-    └── ⑨ 返回 ChatMessage[]
+    └── ⑨ Return ChatMessage[]
 ```
 
-### 5.2 Tier A 伴侣快照 — `readTierACompanion()`
+### 5.2 Tier A companion snapshot — `readTierACompanion()`
 
-从 `state.json` 和 `state.md` 读取伴侣当前状态：
+Reads the companion's current state from `state.json` and `state.md`:
 
 ```
-1. 读取 state.json
-   ├── 人格预设 personality.presetId → 查找 PERSONALITY_PRESETS
-   │   ├── buildPersonalityHint() → TISOR 五维 → 自然语言风格描述
-   │   └── buildPresetVoiceGuide() → 人格口吻指令
-   └── 若 personalityConfigMode === 'inferred'
-       → 追加 userSixDimensions (E/A/D/P/N/O 用户六维画像)
+1. Read state.json
+   ├── Personality preset personality.presetId → lookup PERSONALITY_PRESETS
+   │   ├── buildPersonalityHint() → TISOR five dimensions → natural-language style description
+   │   └── buildPresetVoiceGuide() → personality voice instructions
+   └── If personalityConfigMode === 'inferred'
+       → append userSixDimensions (E/A/D/P/N/O user six-dimension profile)
 
-2. 读取 companion/state.md
-   ├── stripFrontmatter() 移除 frontmatter
-   └── 截断至 2000 字符
+2. Read companion/state.md
+   ├── stripFrontmatter() removes frontmatter
+   └── truncate to 2000 characters
 
-3. 输出格式:
-   【Tier A · 伴侣快照】
-   当前日期：2026-07-01
-   称呼：Ackem
-   当前人格：傲娇
-   【人格口吻·全轮优先】
+3. Output format:
+   【Tier A · companion snapshot】
+   Current date: 2026-07-01
+   Address: Ackem
+   Current personality: tsundere
+   【Personality voice · priority for entire turn】
    (voiceGuide)
-   风格参数：(personalityHint)
-   状态摘录：(state.md)
+   Style parameters: (personalityHint)
+   State excerpt: (state.md)
 ```
 
-### 5.3 风格参数生成 — `buildPersonalityHint()`
+### 5.3 Style parameter generation — `buildPersonalityHint()`
 
-TISOR 五维 → 自然语言风格描述的逻辑（阈值判定）：
+TISOR five dimensions → natural-language style description (threshold logic):
 
 ```
-T (温柔度):
-  ≥ 90 → "极度温柔包容"
-  ≥ 70 → "温柔"
-  ≤ 20 → "冷淡疏离"
-  ≤ 35 → "不轻易流露温暖"
+T (Tenderness):
+  ≥ 90 → "extremely gentle and accepting"
+  ≥ 70 → "gentle"
+  ≤ 20 → "cold and distant"
+  ≤ 35 → "reluctant to show warmth"
 
-I (主动度):
-  ≥ 80 → "主动强势"
-  ≥ 60 → "比较主动"
-  ≤ 25 → "被动回应型"
+I (Initiative):
+  ≥ 80 → "proactive and assertive"
+  ≥ 60 → "fairly proactive"
+  ≤ 25 → "passive responder"
 
-S (敏感度):
-  ≥ 75 → "情绪反应强烈"
-  ≤ 20 → "情绪极为稳定"
+S (Sensitivity):
+  ≥ 75 → "strong emotional reactions"
+  ≤ 20 → "extremely emotionally stable"
 
-R (理性度):
-  ≥ 85 → "极度理性冷静"
-  ≤ 25 → "感性冲动"
+R (Rationality):
+  ≥ 85 → "extremely rational and calm"
+  ≤ 25 → "emotional and impulsive"
 
-特殊标签:
-  provoke-submit → "嘴欠挑衅型，最终会服软"
-  dual-persona  → 成人模式切换描述
-  maternal/paternal/nurturing → 相应标签
+Special tags:
+  provoke-submit → "provocative and mouthy, eventually submits"
+  dual-persona  → adult mode switch description
+  maternal/paternal/nurturing → corresponding tags
 ```
 
-### 5.4 扩展注入合并 — `mergeExtensionContextInjections()`
+### 5.4 Extension injection merge — `mergeExtensionContextInjections()`
 
 ```typescript
 function mergeExtensionContextInjections(args): string[] {
@@ -266,97 +275,97 @@ function mergeExtensionContextInjections(args): string[] {
   for (s of dispatchInjections) pushUnique(s)
   if (dispatchResult.decision === 'auto_invoke') {
     pushUnique(dispatchResult.contextInjection
-      ?? `【扩展调度】已触发 ${name}：${summary}`)
+      ?? `【Extension dispatch】Triggered ${name}: ${summary}`)
   }
   return merged
 }
 ```
 
-### 5.5 预算管理
+### 5.5 Budget management
 
-| 块 | 预算 | 控制方式 |
-|----|------|----------|
-| Tier A (companion) | 2000 字符 | stripFrontmatter + slice(0, 2000) |
-| Tier B (index) | `settings.memoryBudgetChars` | 逐块累积，超 budget 截断 |
-| Tier B (engine) | 由 orchestrator 控制 | 直接拼入 |
-| Tier C | `settings.singleFileSoftLimitBytes` | clip() 截断 |
-| 对话历史 | 最近 20 轮 | `recentMessages.slice(-20)` |
-| 扩展注入 | 无限制 | 源端负责控制 |
+| Block | Budget | Control method |
+|-------|--------|----------------|
+| Tier A (companion) | 2000 characters | stripFrontmatter + slice(0, 2000) |
+| Tier B (index) | `settings.memoryBudgetChars` | accumulate chunks; truncate when budget exceeded |
+| Tier B (engine) | controlled by orchestrator | concatenated directly |
+| Tier C | `settings.singleFileSoftLimitBytes` | clip() truncation |
+| Conversation history | last 20 turns | `recentMessages.slice(-20)` |
+| Extension injection | unlimited | controlled at source |
 
 ---
 
-## 6. 角色状态块 — `buildCharacterStateBlock()`
+## 6. Character State Block — `buildCharacterStateBlock()`
 
-**文件**：`src/main/prompt/emotion-fusion.ts`
+**File:** `src/main/prompt/emotion-fusion.ts`
 
-这是 **system prompt 中最核心的动态块**，由 7 段组成：
+This is the **most critical dynamic block in the system prompt**, composed of 7 sections:
 
-### 6.1 行为优先级
-
-```
-── 行为优先级（严禁冲突）──
-1. 你的【人格核心设定】拥有最高优先级
-2. 你的【禁止清单】是绝对红线
-3. 【安全覆写】：用户明确道歉时忽略当前情绪禁止
-4. 在以上前提上表现出【当前情绪状态】
-```
-
-### 6.2 人格基底
+### 6.1 Behavior priority
 
 ```
-── 你是谁（人格基底）──
-你是「{label}」。
-核心矛盾：{核心矛盾}。
-常用语癖："{语癖1}" "{语癖2}"
-说话方式：{说话方式}
+── Behavior priority (no conflicts allowed) ──
+1. Your 【personality core】 has highest priority
+2. Your 【prohibition list】 is an absolute red line
+3. 【Safety override】: when the user clearly apologizes, ignore current emotion prohibitions
+4. On those premises, express 【current emotional state】
 ```
 
-来自 `personality.ts` 的 29 个 `PersonalityTemplate`。
+### 6.2 Personality foundation
 
-### 6.3 当前情绪
+```
+── Who you are (personality foundation) ──
+You are 「{label}」.
+Core contradiction: {core contradiction}.
+Common verbal tics: "{tic1}" "{tic2}"
+Speaking style: {speaking style}
+```
 
-四维数值从 [-100, 100] 转换到 [0, 100] 显示：
+From 29 `PersonalityTemplate` entries in `personality.ts`.
+
+### 6.3 Current emotion
+
+Four-dimensional values are displayed by mapping [-100, 100] to [0, 100]:
 
 ```typescript
 toDisplay(value) = Math.round((value + 100) / 2)
 ```
 
 ```
-── 你现在的感觉（动态情绪）──
-主导情绪：{label}
-情绪强度：{intensity}（亲密感 {aff}/100，安全感 {sec}/100，唤醒度 {aro}/100，支配度 {dom}/100）
-内在感受：{innerFeeling}。
+── How you feel right now (dynamic emotion) ──
+Dominant emotion: {label}
+Emotional intensity: {intensity} (affinity {aff}/100, security {sec}/100, arousal {aro}/100, dominance {dom}/100)
+Inner feeling: {innerFeeling}.
 ```
 
-各维度的自然语言描述按阈值分档：
+Natural-language descriptions for each dimension by threshold:
 
-| 范围 | aff (亲密感) | sec (安全感) | aro (唤醒度) | dom (支配感) |
-|------|-------------|-------------|-------------|-------------|
-| ≥85 | 非常亲近，主动关心 | 放松信任，不设防 | 高度兴奋，表达欲强 | 主动掌控，引导对话 |
-| ≥70 | 亲近，愿意互动 | 略微放松，正常 | 有活力，正常节奏 | 略微主动，正常平等 |
-| ≥55 | 略微亲近，正常交流 | 平稳 | 平静，没有波动 | 平等对话 |
-| ≥45 | 中性，平淡交流 | — | — | — |
-| ≥30 | 略微疏远，防御提高 | 略微不安 | 略微低迷，话少 | 略微顺从 |
-| <30 | 疏远，抗拒互动 | 不安，需要安慰 | 低迷，疲惫 | 温柔顺从 |
+| Range | aff (affinity) | sec (security) | aro (arousal) | dom (dominance) |
+|-------|----------------|----------------|---------------|-----------------|
+| ≥85 | Very close, proactively caring | Relaxed trust, no guard | Highly excited, strong urge to express | Proactively in control, guiding conversation |
+| ≥70 | Close, willing to engage | Slightly relaxed, normal | Energetic, normal pace | Slightly proactive, normal equality |
+| ≥55 | Slightly close, normal exchange | Steady | Calm, no fluctuation | Equal dialogue |
+| ≥45 | Neutral, flat exchange | — | — | — |
+| ≥30 | Slightly distant, defenses up | Slightly uneasy | Slightly low, fewer words | Slightly submissive |
+| <30 | Distant, resistant to interaction | Uneasy, needs comfort | Low, exhausted | Gently submissive |
 
-`getIntensityLevel(aff)`：极高(≥90)、高(≥70)、中(≥50)、低。
+`getIntensityLevel(aff)`: very high (≥90), high (≥70), medium (≥50), low.
 
-### 6.4 融合执行策略
+### 6.4 Fusion execution strategy
 
 ```
-── 融合执行策略（你是如何表现这种情绪的）──
-[label]目前处于【{情绪}】状态。
-你内心{tendency}，
-但外在表现必须严格遵循【{核心矛盾}】的核心设定。
-通过{说话方式}来暗示你的真实感受。
+── Fusion execution strategy (how you express this emotion) ──
+[label] is currently in 【{emotion}】 state.
+Inside you {tendency},
+but outward behavior must strictly follow the core setting of 【{core contradiction}】.
+Hint at your true feelings through {speaking style}.
 ```
 
-### 6.5 开头短反应系统
+### 6.5 Opening short-reaction system
 
-反应词池（按情绪标签）：
+Reaction word pools (by emotion label):
 
-| 情绪 | 推荐词池 |
-|------|----------|
+| Emotion | Recommended pool |
+|---------|------------------|
 | SWEET_ATTACHMENT | 嗯…、哎呀、嘿嘿、真的吗、哇、天哪、诶 |
 | SHY_HEARTBEAT | 啊…、嗯嗯、才…、不是啦、那个…、呃、诶？ |
 | TSUNDERE | 哼、才不是、随便你、切、哈？、你认真的？、少来、啰嗦 |
@@ -367,18 +376,18 @@ toDisplay(value) = Math.round((value + 100) / 2)
 | QUIET_FOND | …、好、在呢、嗯、噢、啊 |
 | CALM_RATIONAL | 好的、是的、对、嗯、行、可以 |
 
-**去重策略**：模块级 `recentOpeners` 数组（最近 4 轮），推荐词时排除已用词，全部用完时重置。
+**Deduplication strategy:** module-level `recentOpeners` array (last 4 turns); exclude already-used words when recommending; reset when all are used.
 
-**不完美概率**（按情绪标签）：
+**Imperfection probability** (by emotion label):
 
-| 情绪 | 概率 | 说明 |
-|------|------|------|
-| SHY_HEARTBEAT | 15% | 说完一句话后自然停住 |
-| TSUNDERE | 10% | 用省略号代替后半句 |
-| HURT_GRIEVANCE | 12% | 说不下去 |
-| ANGRY_ATTACK | 8% | 怒而中断 |
+| Emotion | Probability | Description |
+|---------|-------------|-------------|
+| SHY_HEARTBEAT | 15% | naturally stop after one sentence |
+| TSUNDERE | 10% | replace second half with ellipsis |
+| HURT_GRIEVANCE | 12% | unable to continue |
+| ANGRY_ATTACK | 8% | cut off in anger |
 
-### 6.6 禁止清单
+### 6.6 Prohibition list
 
 ```typescript
 mergeProhibitions(personalityProhibitions, emotionProhibitions):
@@ -389,61 +398,61 @@ mergeProhibitions(personalityProhibitions, emotionProhibitions):
   return merged.slice(0, 8)
 ```
 
-情绪标签 → 禁止示例：
+Emotion label → prohibition examples:
 
-| 情绪 | 禁止 |
-|------|------|
-| SWEET_ATTACHMENT | 直白情绪词"我好开心"、感叹号连用、超过 3 句话、主动开新话题 |
-| SHY_HEARTBEAT | 直球表白、大段话、主动靠近、"我喜欢你" |
-| TSUNDERE | 直球甜腻、温柔语气、承认在乎 |
-| HURT_GRIEVANCE | 解释辩解、"你听我说"、假装没事 |
-| ANGRY_ATTACK | 委婉道歉、示弱、"对不起" |
-| COLD_DETACHED | 情感词、长句、主动 |
-| QUIET_FOND | 夸张、感叹号、主动展开 |
+| Emotion | Prohibited |
+|---------|------------|
+| SWEET_ATTACHMENT | blunt emotion words like "I'm so happy," consecutive exclamation marks, more than 3 sentences, proactively opening new topics |
+| SHY_HEARTBEAT | direct confession, long passages, proactively closing in, "I like you" |
+| TSUNDERE | direct sweetness, gentle tone, admitting you care |
+| HURT_GRIEVANCE | explaining/defending, "listen to me," pretending nothing is wrong |
+| ANGRY_ATTACK | soft apology, showing weakness, "sorry" |
+| COLD_DETACHED | emotional words, long sentences, initiative |
+| QUIET_FOND | exaggeration, exclamation marks, proactive expansion |
 
-### 6.7 参考示例
+### 6.7 Reference examples
 
-按 `aff` 值选择亲密级别：
+Select intimacy level by `aff` value:
 
 ```
-displayAff ≥ 70 → '高亲密'
-displayAff ≥ 40 → '中亲密'
-else → '低亲密'
-selectExamples(personality, aff, maxExamples=5) → 从对应级别取示例
+displayAff ≥ 70 → 'high intimacy'
+displayAff ≥ 40 → 'medium intimacy'
+else → 'low intimacy'
+selectExamples(personality, aff, maxExamples=5) → take examples from corresponding level
 ```
 
-### 6.8 语气镜像
+### 6.8 Tone mirroring
 
-`userVerbosity === 'terse'` 时，回复上限减半：
+When `userVerbosity === 'terse'`, reply cap is halved:
 
 ```
 maxLen = getEmotionMaxLength(emotionLabel)
-mirrorHint = `用户回复简短，你的回复上限 ${maxLen / 2} 字。`
+mirrorHint = `The user replies briefly; cap your reply at ${maxLen / 2} characters.`
 ```
 
-| 情绪 | 正常上限 |
-|------|----------|
+| Emotion | Normal cap |
+|---------|------------|
 | SWEET_ATTACHMENT | 60 |
 | COLD_DETACHED | 15 |
-| 其余 | 30 |
+| Others | 30 |
 
 ---
 
-## 7. 成人模式引擎
+## 7. Adult Mode Engine
 
-**文件**：`src/main/prompt/adult-mode.ts`
+**File:** `src/main/prompt/adult-mode.ts`
 
-### 7.1 状态机
+### 7.1 State machine
 
 ```
 NORMAL → FLIRTING → INTIMATE → AFTERCARE
                            ↘ NORMAL
 ```
 
-每状态对应温度偏移：
+Each state has a temperature offset:
 
-| 状态 | 温度偏移 |
-|------|----------|
+| State | Temperature offset |
+|-------|-------------------|
 | NORMAL | 0 |
 | FLIRTING | +0.1 |
 | INTIMATE | +0.2 |
@@ -453,9 +462,9 @@ NORMAL → FLIRTING → INTIMATE → AFTERCARE
 clampTemperature(base, offset) = max(0, min(0.95, base + offset))
 ```
 
-### 7.2 安全门禁 — `safetyGate()`
+### 7.2 Safety gate — `safetyGate()`
 
-短路检查，任一条件触发则主动性归零：
+Short-circuit checks; any triggered condition zeroes proactivity:
 
 ```
 1. stage === 'STRANGER'           → 0
@@ -463,21 +472,21 @@ clampTemperature(base, offset) = max(0, min(0.95, base + offset))
 3. negativeEventLockTurns > 0    → 0
 4. hardStopTriggered             → 0
 5. userRejectedLastAdult         → 0
-通过 → -1
+Pass → -1
 ```
 
-### 7.3 主动分值 — `computeProactiveScore()`
+### 7.3 Proactive score — `computeProactiveScore()`
 
-6 因子加权公式（通过门禁后调用）：
+Six-factor weighted formula (called after passing the gate):
 
 ```
-displayAff = (aff + 100) / 2     // 转换到 0-100
+displayAff = (aff + 100) / 2     // map to 0-100
 displaySec = (sec + 100) / 2
 
 stageWeight:  INTIMATE=1.0, FAMILIAR=0.2, STRANGER=0
-timeFactor:   23-5点=1.0, 20-23点=0.8, 17-20点=0.5, 其他=0
+timeFactor:   23:00–05:00=1.0, 20:00–23:00=0.8, 17:00–20:00=0.5, otherwise=0
 moodFactor:  warm=1.0, neutral=0.5, cool=0
-recentIntimacy: 近5轮有成人互动=1.0, 否则=0
+recentIntimacy: adult interaction in last 5 turns=1.0, otherwise=0
 
 score = (displayAff/100) × 0.30
       + (displaySec/100) × 0.10
@@ -487,76 +496,76 @@ score = (displayAff/100) × 0.30
       + recentIntimacy × 0.10
 ```
 
-主动级别：
+Proactivity levels:
 
-| score | 级别 |
-|-------|------|
-| > 0.55 | high → 可直白表达，主动引导 |
-| > 0.35 | medium → 可主动提出，保持收敛 |
-| > 0 | light → 仅情感靠近，不涉成人暗示 |
-| ≤ 0 | none → 被动模式 |
+| score | Level |
+|-------|-------|
+| > 0.55 | high → can express directly, proactively guide |
+| > 0.35 | medium → can propose proactively, stay restrained |
+| > 0 | light → emotional closeness only, no adult hints |
+| ≤ 0 | none → passive mode |
 
-### 7.4 强度预算
+### 7.4 Intensity budget
 
 ```
 INTENSITY_BUDGET_MAX = 60
 INTENSITY_RECOVERY_PER_TURN = 10
 
-操作消耗:
+Operation cost:
   light   → 5
   medium  → 15
   high    → 30
 
-每轮自动恢复 10 点。
+Recovers 10 points automatically each turn.
 ```
 
-### 7.5 硬停止与拒绝检测
+### 7.5 Hard stop and rejection detection
 
 ```typescript
 const HARD_STOP_WORDS = ['停', '不要了', '今天太累了', '我想一个人待会', ...]
 const ADULT_REJECTION_WORDS = ['不要', '别这样', '不想', '算了', ...]
 ```
 
-- `isHardStop(text)` → 硬停止，状态退回 NORMAL
-- `isAdultRejection(text)` → 短冷却（用户拒绝亲密推进）
+- `isHardStop(text)` → hard stop; state returns to NORMAL
+- `isAdultRejection(text)` → short cooldown (user rejected intimacy advance)
 
-### 7.6 记忆隐私等级
+### 7.6 Memory privacy levels
 
 ```typescript
 resolveAdultMemoryPrivacyLevel(...):
-  userMsg 含 keywords 判定:
+  userMsg keyword detection:
     'explicit' keywords (操/射/fuck/cum/...) → 'explicit'
     'intimate' keywords (亲/吻/摸/抱抱/...) → 'intimate'
-    关闭成人模式 → 'normal'
+    adult mode off → 'normal'
 ```
 
-关闭成人模式后，`intimate`/`explicit` 等级的记忆不注入 prompt。
+When adult mode is off, `intimate`/`explicit` memories are not injected into the prompt.
 
-### 7.7 AFTERCARE 情绪调制
+### 7.7 AFTERCARE emotion modulation
 
-INTIMATE → AFTERCARE 时自动注入：
+When INTIMATE → AFTERCARE, automatically inject:
 
 ```typescript
 {
-  primaryLabel: 'QUIET_FOND',  // 安静的喜欢
-  affDelta: +5,                 // 小幅提升依恋
-  secDelta: +5,                 // 小幅提升安全感
-  aroDelta: -20,                // 大幅降低唤醒
+  primaryLabel: 'QUIET_FOND',  // quiet fondness
+  affDelta: +5,                 // slight affinity boost
+  secDelta: +5,                 // slight security boost
+  aroDelta: -20,                // large arousal reduction
 }
 ```
 
 ---
 
-## 8. LLM 调用客户端
+## 8. LLM Client
 
-**文件**：`src/main/llmClient.ts`
+**File:** `src/main/llmClient.ts`
 
-### 8.1 调用接口
+### 8.1 Call interface
 
 ```typescript
 interface LlmJsonCompletion {
   text: string
-  truncated: boolean       // 因 max_tokens 等未写完
+  truncated: boolean       // incomplete due to max_tokens, etc.
 }
 
 createLlmJsonClient(settings) → {
@@ -565,55 +574,55 @@ createLlmJsonClient(settings) → {
 }
 ```
 
-### 8.2 调用流程
+### 8.2 Call flow
 
 ```
 chatCompletionJsonDetailed(messages, temperature, max_tokens):
     │
-    ├── abort check → 若 signal.aborted 则抛 AbortError
+    ├── abort check → throw AbortError if signal.aborted
     │
-    ├── mock mode → mockJsonCompletion() 直接返回（测试用）
+    ├── mock mode → mockJsonCompletion() returns directly (for tests)
     │
-    ├── Provider 分发:
+    ├── Provider dispatch:
     │   ├── Anthropic → anthropicMessagesJsonDetailed()
-    │   │     messages API 格式转换
+    │   │     messages API format conversion
     │   │
-    │   └── OpenAI 兼容 (默认) →
+    │   └── OpenAI-compatible (default) →
     │         POST {baseUrl}/v1/chat/completions
     │         body: { model, messages, temperature, stream: false }
     │         headers: buildLlmHeaders(settings) → Authorization Bearer
     │         timeout: settings.timeoutMs || 120s
-    │         retry: fetchWithRetry() → 指数退避重试
+    │         retry: fetchWithRetry() → exponential backoff
     │
-    ├── response 解析:
+    ├── response parsing:
     │   ├── res.ok → JSON.parse → choices[0].message.content
     │   └── res.error → throw Error(status + body)
     │
-    └── 返回 { text, truncated: finish_reason === 'length' }
+    └── return { text, truncated: finish_reason === 'length' }
 ```
 
-### 8.3 非主聊天 LLM 任务
+### 8.3 Non-main-chat LLM tasks
 
-这些任务使用相同的 `LlmClient` 接口，但各自配置独立：
+These tasks use the same `LlmClient` interface but with independent configuration:
 
-| 任务 | Prompt 文件 | temperature | max_tokens | 频率 |
-|------|-------------|-------------|------------|------|
-| 事实抽取 | `memory-fact-extract.ts` | 0.3 | 1024 | 每轮对话后 |
-| 情节抽取 | `memory-episode.ts` | 0.4 | 512 | 每 6 轮 |
-| 记忆整合 | `memory-consolidation.ts` | 0.4 | 1024 | 每 30 轮 |
-| 矛盾检测 | `memory-contradiction.ts` | 0.2 | 256 | 写入时 |
-| 日记生成 | `diary.ts` | 0.7 | 1024 | 每日 |
-| 六维画像 | `memory-six-dimension.ts` | 0.4 | 512 | 画像更新 |
-| 文档导入 | `memory-document-import.ts` | 0.3 | 2048 | 导入时 |
-| OpenForU Plan | `openforu-plan.ts` | 0.5 | 2048 | 用户触发 |
-| OpenForU 代码 | `openforu-codegen.ts` | 0.4 | 4096 | 部署时 |
+| Task | Prompt file | temperature | max_tokens | Frequency |
+|------|-------------|-------------|------------|-----------|
+| Fact extraction | `memory-fact-extract.ts` | 0.3 | 1024 | After each turn |
+| Episode extraction | `memory-episode.ts` | 0.4 | 512 | Every 6 turns |
+| Memory consolidation | `memory-consolidation.ts` | 0.4 | 1024 | Every 30 turns |
+| Contradiction detection | `memory-contradiction.ts` | 0.2 | 256 | On write |
+| Diary generation | `diary.ts` | 0.7 | 1024 | Daily |
+| Six-dimension profile | `memory-six-dimension.ts` | 0.4 | 512 | Profile update |
+| Document import | `memory-document-import.ts` | 0.3 | 2048 | On import |
+| OpenForU Plan | `openforu-plan.ts` | 0.5 | 2048 | User triggered |
+| OpenForU code | `openforu-codegen.ts` | 0.4 | 4096 | On deployment |
 
 ---
 
-## 9. 主聊天流完整调用链
+## 9. Full Main Chat Call Chain
 
 ```
-renderer 发送消息
+renderer sends message
     │
     ▼
 preload: window.ackem.chat.send(text)
@@ -621,90 +630,90 @@ preload: window.ackem.chat.send(text)
     ▼
 ipc/chat.ts handler
     │
-    ├── Dispatch 路由 → 决定是否走正常聊天
+    ├── Dispatch routing → decide whether to take normal chat path
     ├── orchestrator.runPreLlmTurn()
-    │     ├── L0 解释器 → Event
-    │     ├── L1/L2 更新 → Modulation + EmotionState
-    │     ├── L3 psycheBlock 组装
+    │     ├── L0 interpreter → Event
+    │     ├── L1/L2 update → Modulation + EmotionState
+    │     ├── L3 psycheBlock assembly
     │     ├── L4 retriever.retrieve() → tierBBlock
-    │     ├── 涌现判决 → emergenceHint
-    │     ├── 节奏判决 → RhythmDecision
-    │     └── 扩展调度 → contextInjections
+    │     ├── Emergence decision → emergenceHint
+    │     ├── Rhythm decision → RhythmDecision
+    │     └── Extension dispatch → contextInjections
     │
     ├── context.assembleMessages()
     │     ├── readTierACompanion()
     │     ├── buildSystemPrompt()
-    │     ├── buildCharacterStateBlock()  ← 7段情绪融合
-    │     ├── buildAdultModeSection()     ← 成人模式（如需）
+    │     ├── buildCharacterStateBlock()  ← 7-section emotion fusion
+    │     ├── buildAdultModeSection()     ← adult mode (if needed)
     │     ├── mergeExtensionContextInjections()
     │     ├── [tierA, psycheBlock, tierB, tierC, ext, system].join
     │     └── recentMessages.slice(-20) + userText
     │
     ├── llmClient.chatCompletionJson()
     │     ├── POST {baseUrl}/v1/chat/completions (stream: false)
-    │     └── 返回 JSON 文本
+    │     └── return JSON text
     │
     ├── orchestrator.runPostLlmTurn()
-    │     ├── MemoryIngestPipeline (异步)
+    │     ├── MemoryIngestPipeline (async)
     │     ├── desireStack.update()
     │     ├── emergence.advancePhase()
-    │     └── 保存 FullState
+    │     └── save FullState
     │
-    └── 返回 LLM 回复 → renderer → UI
+    └── return LLM reply → renderer → UI
 ```
 
 ---
 
-## 10. 国际化设计
+## 10. Internationalization Design
 
-**文件**：`prompt/prompt-i18n.ts`、`personality.en.ts`、`emotion-fusion.en.ts`
+**Files:** `prompt/prompt-i18n.ts`, `personality.en.ts`, `emotion-fusion.en.ts`
 
-| 组件 | 中文 | 英文 |
-|------|------|------|
-| 人格模板（29 套完整对话） | `personality.ts` | `personality.en.ts` |
-| 情绪融合（7 段全部） | `emotion-fusion.ts` | `emotion-fusion.en.ts` |
-| 系统提示骨架 | `main-chat.ts`（`statusCode` 监控文案走 i18n） | 同左 |
-| 涌现时间文案 | `prompt-i18n.ts` → `t('feltDuration.short')` | 同左（键值分离） |
-| 主 UI | `src/main/i18n/zh.ts` | `src/main/i18n/en.ts` |
-| 解释器关键词 | `interpreter.ts`（同一文件双表） | 同左 |
+| Component | Chinese | English |
+|-----------|---------|---------|
+| Personality templates (29 full dialogues) | `personality.ts` | `personality.en.ts` |
+| Emotion fusion (all 7 sections) | `emotion-fusion.ts` | `emotion-fusion.en.ts` |
+| System prompt skeleton | `main-chat.ts` (`statusCode` monitoring copy via i18n) | same |
+| Emergence duration copy | `prompt-i18n.ts` → `t('feltDuration.short')` | same (key-value separation) |
+| Main UI | `src/main/i18n/zh.ts` | `src/main/i18n/en.ts` |
+| Interpreter keywords | `interpreter.ts` (dual tables in one file) | same |
 
-本质设计：**prompt 内容按语言分离**，业务逻辑共享。`emotion-fusion.ts` 运行时检测语种：
+Core design: **prompt content is separated by language**; business logic is shared. `emotion-fusion.ts` detects locale at runtime:
 
 ```typescript
 if (getLocale() === 'en') return describeAffEn(value)
-// else 中文分档
+// else Chinese tier descriptions
 ```
 
 ---
 
-## 11. 修改指南
+## 11. Modification Guide
 
-| 你想… | 先看 |
-|--------|------|
-| 改伴侣默认说话风格 | `main-chat.ts` + `personality.ts` |
-| 改情绪融合的 7 段结构 | `emotion-fusion.ts` 的 `buildCharacterStateBlock()` |
-| 改反应词池或去重策略 | `emotion-fusion.ts` 的 `REACTION_OPENERS` + `recentOpeners` |
-| 改不完美概率 | `emotion-fusion.ts` 的 `IMPERFECTION_CHANCE` |
-| 改禁止清单 | `emotion-fusion.ts` 的 `getEmotionProhibitions()` |
-| 改 18+ 话术/策略 | `adult-mode.ts` |
-| 改主动分值公式或权重 | `adult-mode.ts` 的 `computeProactiveScore()` |
-| 改成人状态机 | `adult-mode.ts` 的 `AdultState` + `buildAdultModeSection()` |
-| 改记忆提取 prompt | `memory-fact-extract.ts` + `memory/ingest.ts` |
-| 改 OpenForU Plan prompt | `openforu-plan.ts` |
-| 修改 prompt 层叠顺序 | `context.ts` 的 `assembleMessages()` |
-| 新增一个 LLM 后台任务 | 新建 prompt 文件 + `LlmClient` 调用点 |
-| 改 context window 预算 | `ackemParams.ts` 中的预算常量 |
-| 改国际化文案 | `prompt-i18n.ts` 或对应 `.en.ts` 文件 |
+| If you want to… | Start here |
+|-----------------|------------|
+| Change default companion speaking style | `main-chat.ts` + `personality.ts` |
+| Change the 7-section emotion fusion structure | `buildCharacterStateBlock()` in `emotion-fusion.ts` |
+| Change reaction word pools or deduplication | `REACTION_OPENERS` + `recentOpeners` in `emotion-fusion.ts` |
+| Change imperfection probability | `IMPERFECTION_CHANCE` in `emotion-fusion.ts` |
+| Change prohibition list | `getEmotionProhibitions()` in `emotion-fusion.ts` |
+| Change 18+ phrasing/strategy | `adult-mode.ts` |
+| Change proactive score formula or weights | `computeProactiveScore()` in `adult-mode.ts` |
+| Change adult state machine | `AdultState` + `buildAdultModeSection()` in `adult-mode.ts` |
+| Change memory extraction prompts | `memory-fact-extract.ts` + `memory/ingest.ts` |
+| Change OpenForU Plan prompt | `openforu-plan.ts` |
+| Change prompt stacking order | `assembleMessages()` in `context.ts` |
+| Add a new LLM background task | new prompt file + `LlmClient` call site |
+| Change context window budgets | budget constants in `ackemParams.ts` |
+| Change i18n copy | `prompt-i18n.ts` or corresponding `.en.ts` file |
 
 ---
 
-## 12. 相关文档
+## 12. Related Documentation
 
-| 文档 | 内容 |
-|------|------|
-| [01-brain-system.md](./01-brain-system.md) | Tier B 记忆块来源 |
-| [02-heart-system.md](./02-heart-system.md) | psycheBlock + emotion 来源 |
-| [05-extension-system.md](./05-extension-system.md) | 扩展 contextInjection |
-| [00-overall-system.md](./00-overall-system.md) | 全对话链路 |
+| Document | Content |
+|----------|---------|
+| [01-brain-system.md](./01-brain-system.md) | Tier B memory block sources |
+| [02-heart-system.md](./02-heart-system.md) | psycheBlock + emotion sources |
+| [05-extension-system.md](./05-extension-system.md) | Extension contextInjection |
+| [00-overall-system.md](./00-overall-system.md) | Full conversation pipeline |
 
-*嘴系统 · Ackem v1.0.0 · 2026-06*
+*Mouth System · Ackem v1.0.0 · 2026-06*

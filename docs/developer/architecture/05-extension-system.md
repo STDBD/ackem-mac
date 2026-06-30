@@ -1,30 +1,32 @@
-# 扩展系统 · Extension System
+# Extension System
 
-> **代号**：Hands & Feet / Extensions  
-> **核心问题**：Ackem 如何 **真实执行** 能力（搜索、提醒、家居控制、日程管理）而 **不破坏** 引擎内核？  
-> **设计原则**：协议边界隔离，EngineSnapshot 只读，ExtensionEvent 回传  
-> **远景**：从聊天伴侣进化为 **居家生活智能体** — 控制设备、管理日程、主动关怀
+> **Language:** English · [中文](./05-extension-system.zh.md)
+
+> **Codename:** Hands & Feet / Extensions  
+> **Core question:** How does Ackem **actually execute** capabilities (search, reminders, smart home control, schedule management) **without breaking** the engine core?  
+> **Design principle:** Protocol boundary isolation — EngineSnapshot is read-only, ExtensionEvent is the return channel  
+> **Vision:** Evolve from chat companion to **home-life intelligent agent** — control devices, manage schedules, proactive care
 
 ---
 
-## 1. 定位
+## 1. Positioning
 
-扩展系统是核心引擎与 **外部世界** 的桥梁。引擎负责"感受和思考"（脑+心），扩展系统负责"行动和感知"（手脚）。
+The extension system is the bridge between the core engine and the **external world**. The engine handles "feeling and thinking" (brain + heart); the extension system handles "acting and sensing" (hands and feet).
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│                       引擎 (脑 + 心)                             │
-│  感受: L0 解释器 · L1-L3 情绪关系 · L4 记忆检索                │
-│  思考: LLM 回复生成                                             │
+│                       Engine (Brain + Heart)                      │
+│  Feel: L0 interpreter · L1-L3 emotion/relationship · L4 memory   │
+│  Think: LLM reply generation                                     │
 └────────────────────────┬─────────────────────────────────────────┘
-                         │ EngineSnapshot (只读)
+                         │ EngineSnapshot (read-only)
                          ▼
 ┌──────────────────────────────────────────────────────────────────┐
 │                     ExtensionsCoordinator                        │
 │                                                                  │
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌───────────────────┐  │
 │  │ Dispatch │ │  Skills  │ │  Plugins │ │    OpenForU        │  │
-│  │  调度管线  │ │  技能    │ │  插件    │ │  用户自建扩展      │  │
+│  │ Pipeline │ │  Skills  │ │  Plugins │ │  User-built ext.   │  │
 │  └────┬─────┘ └────┬─────┘ └────┬─────┘ └──────┬────────────┘  │
 │       │            │            │              │                │
 │  ┌────┴────────────┴────────────┴──────────────┴────────────┐  │
@@ -36,69 +38,71 @@
 └──────────────────────────────┼─────────────────────────────────┘
                                │
                                ▼
-                        orchestrator / 嘴系统
+                        orchestrator / Mouth System
 ```
 
-### 1.1 与各系统的数据流
+### 1.1 Data Flow with Other Systems
 
 ```
-每轮对话:
-  用户消息
+Each conversation turn:
+  User message
     │
-    ├──→ 脑系统 (L0+L4) → Event + tierBBlock
-    ├──→ 心系统 (L1-L3) → Emotion + Relationship
+    ├──→ Brain system (L0+L4) → Event + tierBBlock
+    ├──→ Heart system (L1-L3) → Emotion + Relationship
     │
-    └──→ 扩展系统
-           ├── Dispatch 决策: plan / auto_invoke / ask_invoke / chat
-           ├── Skill 执行: 搜索/天气/提醒
-           ├── Plugin 钩子: beforeUserMessage / afterAssistantMessage
-           └──→ ExtensionEvent 回传 → orchestrator 消费
-                   ├── contextInjection → 嘴系统
-                   ├── emotionHint → 心系统 (情绪调制)
-                   └── action_result → UI 通知
+    └──→ Extension system
+           ├── Dispatch decision: plan / auto_invoke / ask_invoke / chat
+           ├── Skill execution: search/weather/reminders
+           ├── Plugin hooks: beforeUserMessage / afterAssistantMessage
+           └──→ ExtensionEvent returned → consumed by orchestrator
+                   ├── contextInjection → Mouth system
+                   ├── emotionHint → Heart system (emotion modulation)
+                   └── action_result → UI notification
 
-每 60s 后台:
+Every 60s background:
   Scheduler tick
-    ├── 习惯维护 (升级/清理/降级)
-    ├── ProactiveGate 决策
-    ├── Autonomous 扩展执行 (日记/健康提醒)
-    └── 特殊日检测
+    ├── Habit maintenance (promote/cleanup/decay)
+    ├── ProactiveGate decision
+    ├── Autonomous extension execution (diary/health reminders)
+    └── Special day detection
 ```
 
 ---
 
-## 2. 核心架构
+## 2. Core Architecture
 
-### 2.1 四层架构
+### 2.1 Four-Layer Architecture
 
 ```
-应用层 (IPC + React UI)
+Application layer (IPC + React UI)
   ┌─────────────────────────────────────────────┐
-  │  ipc.ts · ChatPage · Surface · 扩展中心     │
+  │  ipc.ts · ChatPage · Surface · Extension Hub│
   └─────────────────┬───────────────────────────┘
                      │
-协调层 (ExtensionsCoordinator)
+Coordination layer (ExtensionsCoordinator)
   ┌─────────────────────────────────────────────┐
-  │  Singleton 协调器 · 事件队列 · 快照管理     │
+  │  Singleton coordinator · event queue ·      │
+  │  snapshot management                          │
   └─────────────────┬───────────────────────────┘
                      │
-能力层 (Skills + Plugins + OpenForU + GameMode)
+Capability layer (Skills + Plugins + OpenForU + GameMode)
   ┌─────────────────────────────────────────────┐
-  │  Skill 一次性执行 / Plugin 常驻钩子         │
-  │  OpenForU 自然语言→扩展 / GameMode 游戏陪伴 │
+  │  Skill one-shot execution / Plugin hooks    │
+  │  OpenForU NL→extension / GameMode companion │
   └─────────────────┬───────────────────────────┘
                      │
-策略层 (Policy)
+Policy layer (Policy)
   ┌─────────────────────────────────────────────┐
-  │  主动门控 · 强度调制 · 注意力预算 · 画像   │
+  │  Proactive gate · intensity mod · attention │
+  │  budget · user profile                      │
   └─────────────────────────────────────────────┘
 ```
 
-### 2.2 Coordinator（协调器）
+### 2.2 Coordinator
 
-**文件**：`src/main/extensions/coordinator.ts` (299 行)
+**File**: `src/main/extensions/coordinator.ts` (299 lines)
 
-单例协调器，一切扩展操作的入口：
+Singleton coordinator — the entry point for all extension operations:
 
 ```typescript
 class ExtensionsCoordinator {
@@ -107,50 +111,50 @@ class ExtensionsCoordinator {
   readonly openforu: OpenForULoader
   readonly gameMode: GameModeCoordinator
 
-  // 启动序列
+  // Boot sequence
   async boot(snapshot):
     ① plugins.loadRegistry()
     ② skills.loadRegistry()
     ③ registerBuiltinKnowledgePresentation(plugins)
     ④ registerBuiltinDesktopCompanion(plugins)
-    ⑤ registerBuiltinPlugins(plugins)        // 13 个占位
-    ⑥ registerBuiltinSkills(skills)          // 约 15-20 个
+    ⑤ registerBuiltinPlugins(plugins)        // 13 placeholders
+    ⑥ registerBuiltinSkills(skills)          // ~15-20
     ⑦ registerPluginCatalogPlaceholders()
     ⑧ registerSkillCatalogPlaceholders()
-    ⑨ ensureCoreExtensionsActive()           // 确保核心扩展启用
-    ⑩ openforu.boot()                        // 加载用户自建扩展
-    ⑪ community.boot() (仅社区扩展开放时)
+    ⑨ ensureCoreExtensionsActive()           // ensure core extensions enabled
+    ⑩ openforu.boot()                        // load user-built extensions
+    ⑪ community.boot() (only when community extensions open)
 
-  // 每轮 Pre-LLM 后更新快照
+  // Update snapshot after each Pre-LLM turn
   updateSnapshot(snapshot):
-    → 更新 gameMode / plugins / skills 的快照
+    → update snapshots for gameMode / plugins / skills
 
-  // 事件队列 — 所有扩展产的 ExtensionEvent 汇总
+  // Event queue — aggregates all ExtensionEvents from extensions
   drainAllEvents(): ExtensionEvent[]
   getContextInjections(): string[]
   getAggregatedEmotionHints(): { affDelta, secDelta, aroDelta, domDelta }
 
-  // 工具调用 — LLM function calling
+  // Tool invocation — LLM function calling
   getAvailableTools(): FunctionDef[]
   executeSkill(invocation): SkillResult
 }
 ```
 
-### 2.3 协议边界（最重要）
+### 2.3 Protocol Boundary (Most Important)
 
-**文件**：`src/main/extensions/protocols.ts` (305 行)
+**File**: `src/main/extensions/protocols.ts` (305 lines)
 
-扩展系统最核心的设计：**扩展不得直接 import 引擎内部模块**，只能通过协议接口通信。
+The extension system's core design: **extensions must not directly import engine internal modules** — communication goes only through protocol interfaces.
 
 ```
-允许:                             禁止:
-  · 通过 Coordinator 注册          · import engine/ 内部
-  · 读取 EngineSnapshot (只读)     · import memory/ 内部
-  · 回传 ExtensionEvent            · 直接操作数据库
-  · 调用 EngineApi 暴露的方法      · 直接读写 data/ 引擎目录
+Allowed:                          Forbidden:
+  · Register via Coordinator       · import engine/ internals
+  · Read EngineSnapshot (read-only) · import memory/ internals
+  · Return ExtensionEvent           · Direct database operations
+  · Call methods exposed by EngineApi · Direct read/write of data/ engine dirs
 ```
 
-**EngineSnapshot** — 扩展能看到的引擎全貌：
+**EngineSnapshot** — the full engine view visible to extensions:
 
 ```typescript
 interface EngineSnapshot {
@@ -166,7 +170,7 @@ interface EngineSnapshot {
 }
 ```
 
-**ExtensionEvent** — 扩展反馈的唯一通道：
+**ExtensionEvent** — the sole feedback channel for extensions:
 
 ```typescript
 interface ExtensionEvent {
@@ -175,20 +179,20 @@ interface ExtensionEvent {
   sourceId: string
   type: string
   payload: Record<string, unknown>
-  emotionHint?: { affDelta, secDelta, aroDelta, domDelta }  // 情绪调制建议
-  injectToContext?: boolean     // 是否注入 LLM 上下文
-  contextInjection?: string     // 注入文本
+  emotionHint?: { affDelta, secDelta, aroDelta, domDelta }  // emotion modulation suggestion
+  injectToContext?: boolean     // whether to inject into LLM context
+  contextInjection?: string     // injection text
   timestamp: string
 }
 ```
 
-**ExtensionLifecycleHooks** — Plugin 生命周期：
+**ExtensionLifecycleHooks** — Plugin lifecycle:
 
 ```typescript
 interface ExtensionLifecycleHooks {
   onLoad?: (snapshot) => ExtensionOpResult
   onUnload?: () => ExtensionOpResult
-  onEngineUpdate?: (snapshot) => ExtensionOpResult     // 每轮对话后
+  onEngineUpdate?: (snapshot) => ExtensionOpResult     // after each turn
   beforeUserMessage?: (msg, snapshot) => { contextInjections }
   afterAssistantMessage?: (reply, snapshot) => ExtensionOpResult
 }
@@ -196,739 +200,754 @@ interface ExtensionLifecycleHooks {
 
 ---
 
-## 3. Dispatch 调度系统
+## 3. Dispatch Scheduling System
 
-**目录**：`src/main/extensions/dispatch/` (14 个文件)
+**Directory**: `src/main/extensions/dispatch/` (14 files)
 
-### 3.1 六种 Dispatch Mode
+### 3.1 Six Dispatch Modes
 
-| Mode | 触发方式 | 典型用途 | 示例 |
-|------|---------|----------|------|
-| `dispatched` | LLM 精判 (关键词+语义+embedding→LLM) | 大多数 Skill | "帮我查天气" |
-| `autonomous` | 定时器 + ProactiveGate 门控 | 主动提醒 | 久坐提醒、喝水 |
-| `always_on` | 始终活跃 | 核心功能 | 桌面陪伴、知识展示 |
-| `manual` | 用户明确通过 UI 触发 | 配置操作 | /diary, /remind |
-| `engine_event` | 引擎事件驱动 | 游戏事件 | 游戏内成就 |
-| `scheduled` | Cron 表达式 | 定时任务 | 每日 8 点问安 |
+| Mode | Trigger | Typical use | Example |
+|------|---------|-------------|---------|
+| `dispatched` | LLM fine judgment (keyword+semantic+embedding→LLM) | Most Skills | "Check the weather for me" |
+| `autonomous` | Timer + ProactiveGate gating | Proactive reminders | Sedentary reminder, drink water |
+| `always_on` | Always active | Core features | Desktop companion, knowledge display |
+| `manual` | User explicitly triggers via UI | Config operations | /diary, /remind |
+| `engine_event` | Engine event driven | Game events | In-game achievements |
+| `scheduled` | Cron expression | Scheduled tasks | Daily 8 AM greeting |
 
-### 3.2 调度决策树 (7 优先级)
+### 3.2 Dispatch Decision Tree (7 Priorities)
 
-`routeDispatch()` 按严格优先级依次判断：
+`routeDispatch()` evaluates in strict priority order:
 
 ```
-用户消息
+User message
     │
-    ├── ① 显式扩展需求 (P1)
-    │     "帮我做一个番茄钟" → detectExtensionDemandExplicit
-    │     → decision: 'plan' (创建 OpenForU 工作区)
+    ├── ① Explicit extension demand (P1)
+    │     "Help me make a Pomodoro timer" → detectExtensionDemandExplicit
+    │     → decision: 'plan' (create OpenForU workspace)
     │
-    ├── ② 能力探测 (P2)
-    │     "要是能自动记日记就好了" → shouldRunCapabilityProbe
-    │     → LLM 分类: extension_demand? → 'ask_plan' | 'chat'
+    ├── ② Capability probe (P2)
+    │     "Wish it could auto-write a diary" → shouldRunCapabilityProbe
+    │     → LLM classify: extension_demand? → 'ask_plan' | 'chat'
     │
-    ├── ③ Slash 命令 (P3)
-    │     "/番茄钟" → matchSlashInvoke
-    │     → 'auto_invoke' (跳过 LLM, 直接触发)
+    ├── ③ Slash command (P3)
+    │     "/pomodoro" → matchSlashInvoke
+    │     → 'auto_invoke' (skip LLM, trigger directly)
     │
-    ├── ④ 进化指令 (P4)
-    │     "优化一下番茄钟" → matchEvolveExtension
-    │     → 'evolve' (打开 Refine 模式)
+    ├── ④ Evolve command (P4)
+    │     "Improve the Pomodoro timer" → matchEvolveExtension
+    │     → 'evolve' (open Refine mode)
     │
-    ├── ⑤ Surface 打开 (P5)
-    │     "打开番茄钟界面" → matchExplicitOpenSurface
-    │     → 'open_surface' (打开 UI 窗口)
+    ├── ⑤ Surface open (P5)
+    │     "Open the Pomodoro UI" → matchExplicitOpenSurface
+    │     → 'open_surface' (open UI window)
     │
-    ├── ⑥ 显式调用 (P6)
-    │     "启动番茄钟" → matchExplicitInvoke
-    │     → 'auto_invoke' (直接触发)
+    ├── ⑥ Explicit invoke (P6)
+    │     "Start the Pomodoro timer" → matchExplicitInvoke
+    │     → 'auto_invoke' (trigger directly)
     │
-    └── ⑦ LLM 精判 (P7) ← 最复杂的路径
+    └── ⑦ LLM fine judgment (P7) ← most complex path
           │
-          ├── keywordHits: 关键词精确匹配 → 候选列表
-          ├── semanticHits: token 重叠 + bigram 评分 → 候选列表
-          ├── embeddingCandidates: 语义路由匹配 → 候选列表
-          │   (cosine 相似度 ≥ 0.70 高置信直接 auto_invoke)
+          ├── keywordHits: keyword exact match → candidate list
+          ├── semanticHits: token overlap + bigram scoring → candidate list
+          ├── embeddingCandidates: semantic routing match → candidate list
+          │   (cosine similarity ≥ 0.70 high confidence → direct auto_invoke)
           │
-          └── merge → LLM rerank (3 选, 0-1 分)
-                ├── ≥ 0.85 (×人格调参) → 'auto_invoke'
-                ├── ≥ 0.60 (×人格调参) → 'ask_invoke' (问用户)
+          └── merge → LLM rerank (pick 3, score 0-1)
+                ├── ≥ 0.85 (×personality tuning) → 'auto_invoke'
+                ├── ≥ 0.60 (×personality tuning) → 'ask_invoke' (ask user)
                 └── < 0.60 → 'silent'
 ```
 
-### 3.3 LLM 精判阈值调参
+### 3.3 LLM Fine-Judgment Threshold Tuning
 
-阈值受四个因素动态调整：
+Thresholds are dynamically adjusted by four factors:
 
 ```typescript
-AUTO_THRESHOLD = 0.85    // 自动触发
-ASK_THRESHOLD = 0.60     // 询问用户
+AUTO_THRESHOLD = 0.85    // auto trigger
+ASK_THRESHOLD = 0.60     // ask user
 
-// 人格调参
+// Personality tuning
 PERSONALITY_MOD = {
-  deredere: 1.15,  // 黏人型 → 更易触发
-  tsundere: 0.90,  // 傲娇型 → 更难触发
-  kuudere: 1.25,   // 冷娇型 → 更难触... 不对, 更易触发 (因为话少所以精)
-  genki: 0.85,     // 元气型 → 更难触发 (因为话多所以抑制)
+  deredere: 1.15,  // clingy type → easier to trigger
+  tsundere: 0.90,  // tsundere → harder to trigger
+  kuudere: 1.25,   // kuudere → easier to trigger (few words → precise)
+  genki: 0.85,     // genki → harder to trigger (talkative → suppress)
 }
 
-// 用户偏好调制
+// User preference modulation
 confidence += getDispatchedConfidenceDelta(dataRoot, id, rejectedInSession)
-  // 用户允诺过 → +0.12
-  // 用户拒绝过 → -0.20
-  // 本会话拒绝 → -0.15
+  // user previously allowed → +0.12
+  // user previously rejected → -0.20
+  // rejected this session → -0.15
 
-// 强制触发 (用户 profile 设为永久允许)
-if shouldForceAutoInvoke(dataRoot, id) → 直接 auto_invoke
+// Force trigger (user profile set to permanent allow)
+if shouldForceAutoInvoke(dataRoot, id) → direct auto_invoke
 ```
 
-### 3.4 Intent 消解
+### 3.4 Intent Resolution
 
-**文件**：`dispatch/intentResolver.ts`
+**File**: `dispatch/intentResolver.ts`
 
-在处理 dispatch 前，先对用户消息做 **上下文感知意图消解**：
+Before dispatch processing, performs **context-aware intent resolution** on user messages:
 
 ```
 resolveIntent(msg, sessionId, llm):
-  ├── isAmbiguous(msg): 纯规则检测 <0.1ms
-  │     指示词: "呢/这个/那个/它/她/他"
-  │     短句: "继续/然后/接着"
-  │     裸问句: "怎么了？/啥呢？"
+  ├── isAmbiguous(msg): pure rule detection <0.1ms
+  │     indicators: "呢/这个/那个/它/她/他"
+  │     short phrases: "继续/然后/接着"
+  │     bare questions: "怎么了？/啥呢？"
   │
-  ├── 歧义 + 有话题栈 → LLM 消解
-  │     prompt: "最近话题: {topic}\n用户消息: {msg}\n消解后:"
-  │     10 分钟 TTL
+  ├── ambiguous + topic stack exists → LLM resolution
+  │     prompt: "Recent topic: {topic}\nUser message: {msg}\nResolved:"
+  │     10 minute TTL
   │
-  └── 不歧义 → 原样返回
+  └── not ambiguous → return as-is
 ```
 
-话题栈由前几轮 dispatch 触发时 push，辅助消解"继续""那个呢"等回指。
+Topic stack is pushed when prior dispatch rounds trigger, assisting resolution of anaphora like "continue" and "what about that one".
 
 ### 3.5 Dispatch Pipeline
 
-**文件**：`dispatch/contextPipeline.ts`
+**File**: `dispatch/contextPipeline.ts`
 
-完整的调度管线包装了所有步骤：
+The full dispatch pipeline wraps all steps:
 
 ```
 runDispatchPipeline(input):
-  ┌── ① filterDispatchedCatalogByProfile 过滤用户排斥的扩展
-  ├── ② matchSlashInvokeDisabled 检查 slash 禁用状态
-  ├── ③ buildDispatchMemoryBlock 构建调度记忆块
-  ├── ④ resolveIntent 意图消解
-  ├── ⑤ Embedding 路由 (queryEmbed + routeIndex)
-  ├── ⑥ routeDispatch 主决策树
-  ├── ⑦ topic push 话题追踪
-  ├── ⑧ 处理结果
+  ┌── ① filterDispatchedCatalogByProfile filter user-rejected extensions
+  ├── ② matchSlashInvokeDisabled check slash disabled state
+  ├── ③ buildDispatchMemoryBlock build dispatch memory block
+  ├── ④ resolveIntent intent resolution
+  ├── ⑤ Embedding routing (queryEmbed + routeIndex)
+  ├── ⑥ routeDispatch main decision tree
+  ├── ⑦ topic push topic tracking
+  ├── ⑧ handle result
   │     auto_invoke → executeDispatchedExtension
   │     invoke_surface → executeSurfaceInvoke
-  │     ask_invoke + skipAsk → 转为 chat
-  └── ⑨ 返回 extraInjections + emotionHintDelta
+  │     ask_invoke + skipAsk → convert to chat
+  └── ⑨ return extraInjections + emotionHintDelta
 ```
 
 ---
 
-## 4. Skill 系统
+## 4. Skill System
 
-**目录**：`src/main/extensions/skills/`
+**Directory**: `src/main/extensions/skills/`
 
-### 4.1 定位
+### 4.1 Positioning
 
-Skill 是 **一次性执行** 的能力 — 触发→执行→返回结果，无常驻状态。
+A Skill is a **one-shot execution** capability — trigger → execute → return result, no persistent state.
 
-### 4.2 Skill 类型
+### 4.2 Skill Types
 
-| 类型 | 说明 | 示例 |
-|------|------|------|
-| `rule` | 关键词触发 + 固定回复 | 喝水提醒 |
-| `tool` | LLM function calling 工具 | web-search, weather |
-| `proactive` | 定时激活的主动技能 | 日记归档 |
-| `workflow` | 多步工作流 | Plan 部署 |
+| Type | Description | Example |
+|------|-------------|---------|
+| `rule` | Keyword trigger + fixed reply | Drink water reminder |
+| `tool` | LLM function calling tool | web-search, weather |
+| `proactive` | Timer-activated proactive skill | Diary archive |
+| `workflow` | Multi-step workflow | Plan deployment |
 
-### 4.3 触发方式
+### 4.3 Trigger Methods
 
-| 触发 | 说明 |
-|------|------|
-| `manual` | 用户通过 UI 手动触发 |
-| `keyword` | 关键词匹配后 auto_invoke |
-| `llm_function_call` | LLM 通过 tool calling 调用 |
-| `scheduled` | 定时器间隔触发 |
-| `engine_event` | 引擎事件 |
-| `game_event` | 游戏事件 |
-| `system_event` | 系统事件 |
+| Trigger | Description |
+|---------|-------------|
+| `manual` | User manually triggers via UI |
+| `keyword` | Keyword match then auto_invoke |
+| `llm_function_call` | LLM invokes via tool calling |
+| `scheduled` | Timer interval trigger |
+| `engine_event` | Engine event |
+| `game_event` | Game event |
+| `system_event` | System event |
 
-### 4.4 Skill 执行流程
+### 4.4 Skill Execution Flow
 
 ```
 execute({ skillId, trigger, userMessage, snapshot }):
-  ├── ① 查找 handler (SkillRegistry)
-  ├── ② 读取 EngineSnapshot (只读)
-  ├── ③ 执行业务逻辑 (搜索API/天气API/本地计算)
-  ├── ④ 返回 SkillResult
-  │     ├── output → 直接回复文本
-  │     ├── events[] → ExtensionEvent 数组
-  │     └── injectToContext → 是否注入 LLM
-  └── ⑤ orchestrator 消费结果
+  ├── ① Look up handler (SkillRegistry)
+  ├── ② Read EngineSnapshot (read-only)
+  ├── ③ Execute business logic (search API/weather API/local compute)
+  ├── ④ Return SkillResult
+  │     ├── output → direct reply text
+  │     ├── events[] → ExtensionEvent array
+  │     └── injectToContext → whether to inject into LLM
+  └── ⑤ orchestrator consumes result
 ```
 
-### 4.5 内置 Skill
+### 4.5 Built-in Skills
 
-| ID | 类型 | 功能 | 状态 |
-|----|------|------|------|
-| ackem/web-search | tool | 联网搜索 (LLM function calling) | 实现中 |
-| ackem/weather-sense | rule+proactive | 天气感知与提醒 | 实现中 |
-| ackem/diary-auto | proactive | 自动日记生成 | 实现中 |
-| ackem/sedentary-reminder | proactive | 久坐提醒 | stub |
-| ackem/drink-water-reminder | proactive | 喝水提醒 | stub |
-| ackem/late-night-reminder | proactive | 深夜提醒 | stub |
-| ackem/light-schedule | tool | 简易日程管理 | stub |
-| ackem/plan-document | tool | 计划书生成 | stub |
-| ackem/emergency-companion | rule | 紧急陪伴 | stub |
-| ackem/markdown-table | tool | Markdown 表格 | stub |
-| ackem/fun-profile | tool | 趣味分析 | stub |
+| ID | Type | Function | Status |
+|----|------|----------|--------|
+| ackem/web-search | tool | Web search (LLM function calling) | In progress |
+| ackem/weather-sense | rule+proactive | Weather awareness and reminders | In progress |
+| ackem/diary-auto | proactive | Auto diary generation | In progress |
+| ackem/sedentary-reminder | proactive | Sedentary reminder | stub |
+| ackem/drink-water-reminder | proactive | Drink water reminder | stub |
+| ackem/late-night-reminder | proactive | Late-night reminder | stub |
+| ackem/light-schedule | tool | Lightweight schedule management | stub |
+| ackem/plan-document | tool | Plan document generation | stub |
+| ackem/emergency-companion | rule | Emergency companion | stub |
+| ackem/markdown-table | tool | Markdown table | stub |
+| ackem/fun-profile | tool | Fun analysis | stub |
 
 ---
 
-## 5. Plugin 系统
+## 5. Plugin System
 
-**目录**：`src/main/extensions/plugins/`
+**Directory**: `src/main/extensions/plugins/`
 
-### 5.1 定位
+### 5.1 Positioning
 
-Plugin 是 **常驻** 的能力 — 有生命周期钩子、可有 UI 界面（Surface）、可持有状态。
+A Plugin is a **persistent** capability — has lifecycle hooks, may have a UI (Surface), may hold state.
 
-### 5.2 Plugin 类型
+### 5.2 Plugin Types
 
-| 类型 | 说明 | 示例 |
-|------|------|------|
-| `skin` | 伴侣外观皮肤 | Live2D 皮肤 |
-| `personality` | 人格扩展 | 额外人格预设 |
-| `behavior` | 行为逻辑 | 知识展示板 |
-| `tool` | 工具能力 | TTS 语音 |
-| `game_provider` | 游戏提供方 | 五子棋引擎 |
-| `skill_pack` | 技能包 | 组合多个 skill |
-| `theme` | 主题 | UI 主题 |
+| Type | Description | Example |
+|------|-------------|---------|
+| `skin` | Companion appearance skin | Live2D skin |
+| `personality` | Personality extension | Extra personality presets |
+| `behavior` | Behavior logic | Knowledge display board |
+| `tool` | Tool capability | TTS voice |
+| `game_provider` | Game provider | Gomoku engine |
+| `skill_pack` | Skill pack | Combines multiple skills |
+| `theme` | Theme | UI theme |
 
-### 5.3 权限模型 (8 级)
+### 5.3 Permission Model (8 Levels)
 
-| 等级 | 权限 | 说明 | 风险 |
-|------|------|------|------|
-| L0 | `readonly` | 读取自身文件 | 安全 |
-| L1 | `data_write` | 写入自身数据目录 | 低 |
-| L2 | `engine_read` | 读取 EngineSnapshot | 低 |
-| L3 | `engine_inject` | 注入 LLM 上下文 | 中 |
-| L4 | `network_outbound` | HTTPS 出站 (禁止 localhost) | 中 |
-| L5 | `system_notification` | OS 系统通知 | 低 |
-| L6 | `clipboard_read` | 读取剪贴板 — **需用户批准** | 高 |
-| L6 | `foreground_detect` | 检测前台应用 — **需用户批准** | 高 |
+| Level | Permission | Description | Risk |
+|-------|------------|-------------|------|
+| L0 | `readonly` | Read own files | Safe |
+| L1 | `data_write` | Write own data directory | Low |
+| L2 | `engine_read` | Read EngineSnapshot | Low |
+| L3 | `engine_inject` | Inject LLM context | Medium |
+| L4 | `network_outbound` | HTTPS outbound (localhost forbidden) | Medium |
+| L5 | `system_notification` | OS system notification | Low |
+| L6 | `clipboard_read` | Read clipboard — **requires user approval** | High |
+| L6 | `foreground_detect` | Detect foreground app — **requires user approval** | High |
 
-### 5.4 Surface 系统
+### 5.4 Surface System
 
-Plugin 可以拥有 Surface（在渲染进程打开的 UI 窗口）：
+Plugins can own a Surface (UI window opened in the renderer process):
 
 ```typescript
 interface SurfaceConfig {
-  route: string      // React 路由 (如 '/plugin/knowledge-presentation')
+  route: string      // React route (e.g. '/plugin/knowledge-presentation')
   size?: { width, height }
   title?: string
 }
 ```
 
-Surface 支持两种渲染方式：
-- **`html`**: 自定义 HTML/Widget (OpenForU 默认)
-- **`react-builtin`**: 内置 React 页面 (官方 Plugin)
+Surface supports two rendering modes:
+- **`html`**: Custom HTML/Widget (OpenForU default)
+- **`react-builtin`**: Built-in React page (official Plugin)
 
-### 5.5 内置 Plugin
+### 5.5 Built-in Plugins
 
-| ID | 功能 | Surface | 类型 | 状态 |
-|----|------|---------|------|------|
-| ackem/knowledge-presentation | 知识卡片展示 | ✅ | behavior | 完成 |
-| ackem/desktop-companion | 桌面状态信息 | ❌ | behavior | 完成 |
-| ackem/tts-voice | 语音合成 | ❌ | tool | stub |
-| ackem/companion-skin | 伴侣皮肤 | ❌ | skin | 占位 |
-| ackem/live2d | Live2D 桌宠 | ❌ | skin | 占位 |
+| ID | Function | Surface | Type | Status |
+|----|----------|---------|------|--------|
+| ackem/knowledge-presentation | Knowledge card display | ✅ | behavior | Complete |
+| ackem/desktop-companion | Desktop status info | ❌ | behavior | Complete |
+| ackem/tts-voice | Speech synthesis | ❌ | tool | stub |
+| ackem/companion-skin | Companion skin | ❌ | skin | placeholder |
+| ackem/live2d | Live2D desktop pet | ❌ | skin | placeholder |
 
 ---
 
-## 6. OpenForU — 用户自建扩展
+## 6. OpenForU — User-Built Extensions
 
-**目录**：`src/main/extensions/openforu/` (13 个文件)
+**Directory**: `src/main/extensions/openforu/` (13 files)
 
-### 6.1 定位
+### 6.1 Positioning
 
-OpenForU 允许用户在聊天中 **用自然语言创建自己的扩展**（Skill 或 Plugin），无需写代码或理解 Ackem 内部架构。这是 Ackem **从伴侣到居家智能体** 的关键能力。
+OpenForU lets users **create their own extensions in chat using natural language** (Skill or Plugin), without writing code or understanding Ackem's internal architecture. This is Ackem's key capability for evolving **from companion to home intelligent agent**.
 
-### 6.2 完整流程
+### 6.2 Full Flow
 
 ```
-用户在聊天中说:
-  "帮我做一个每天提醒我喝水的插件"
+User says in chat:
+  "Help me make a plugin that reminds me to drink water every day"
     │
     ▼
 ┌──────────────────────────────────────────────────────────────┐
-│  ① 能力探测 (dispatchRouter.ts)                             │
+│  ① Capability probe (dispatchRouter.ts)                     │
 │     detectExtensionDemandExplicit → decision: 'plan'        │
-│     或 shouldRunCapabilityProbe → LLM 分类 → 'ask_plan'     │
-│     createToolAnchor cosine 匹配 ("要是能自动就好了" 等)     │
+│     or shouldRunCapabilityProbe → LLM classify → 'ask_plan' │
+│     createToolAnchor cosine match ("wish it could auto" etc)│
 └──────────────────────┬───────────────────────────────────────┘
                        │
                        ▼
 ┌──────────────────────────────────────────────────────────────┐
-│  ② Plan 工作区创建 (OpenForUCoordinator)                     │
-│     createWorkspace(name?) → 写入 data/openforu/sessions/    │
-│     → 用户进入 Plan 对话界面                                 │
+│  ② Plan workspace creation (OpenForUCoordinator)            │
+│     createWorkspace(name?) → write to data/openforu/sessions/│
+│     → user enters Plan conversation UI                      │
 └──────────────────────┬───────────────────────────────────────┘
                        │
                        ▼
 ┌──────────────────────────────────────────────────────────────┐
-│  ③ Plan Agent 多轮对话                                       │
-│     runPlanAgentTurn() — LLM 引导用户明确:                   │
-│       · uskill (配置+注入) 还是 uplugin (沙箱执行+Surface)   │
-│       · 触发方式 (关键词/定时/主动)                          │
-│       · 行为描述                                             │
-│       · 所需权限                                             │
-│       · Design Spec (uplugin 的 UI 设计)                     │
-│     自动同步: dispatchDraft + planSummary + designSpec       │
+│  ③ Plan Agent multi-turn conversation                        │
+│     runPlanAgentTurn() — LLM guides user to clarify:         │
+│       · uskill (config+inject) or uplugin (sandbox+Surface) │
+│       · trigger method (keyword/timer/proactive)             │
+│       · behavior description                                 │
+│       · required permissions                                 │
+│       · Design Spec (uplugin UI design)                      │
+│     Auto-sync: dispatchDraft + planSummary + designSpec      │
 └──────────────────────┬───────────────────────────────────────┘
                        │
                        ▼
 ┌──────────────────────────────────────────────────────────────┐
-│  ④ 确认方案 (confirmPlan)                                    │
-│     检查: planSummary 就绪 || dispatchDraft 四维齐全         │
-│     检查: artifactType 已明确 (uskill/uplugin)              │
-│     检查: designSpec 就绪 (uplugin 需 wireframeApproved)    │
+│  ④ Confirm plan (confirmPlan)                               │
+│     Check: planSummary ready OR dispatchDraft 4 dims complete│
+│     Check: artifactType clarified (uskill/uplugin)            │
+│     Check: designSpec ready (uplugin needs wireframeApproved) │
 └──────────────────────┬───────────────────────────────────────┘
                        │
                        ▼
 ┌──────────────────────────────────────────────────────────────┐
-│  ⑤ 生成产物                                                 │
-│     uskill:  generateUskillFromSession()                    │
-│       → manifest.json + skill.json (声明式配置)             │
+│  ⑤ Generate artifacts                                       │
+│     uskill:  generateUskillFromSession()                     │
+│       → manifest.json + skill.json (declarative config)     │
 │     uplugin: generateUpluginFromSession()                   │
 │       → manifest.json + plugin.meta.json + surface.html     │
-│       → injectTemplate (beforeUserMessage 回退方案)         │
+│       → injectTemplate (beforeUserMessage fallback)         │
 └──────────────────────┬───────────────────────────────────────┘
                        │
                        ▼
 ┌──────────────────────────────────────────────────────────────┐
-│  ⑥ 部署 (deployPlan)                                        │
-│     ↓ 写入 data/openforu/uskills/{slug}/                    │
-│     ↓ 或 data/openforu/uplugins/{slug}/                     │
-│     ↓ loader.boot() 重新加载                                 │
-│     ↓ 注册到 SkillRegistry / PluginRegistry                 │
-│     ↓ 扩展到 Dispatch Catalog                                │
+│  ⑥ Deploy (deployPlan)                                       │
+│     ↓ write to data/openforu/uskills/{slug}/                │
+│     ↓ or data/openforu/uplugins/{slug}/                     │
+│     ↓ loader.boot() reload                                  │
+│     ↓ register to SkillRegistry / PluginRegistry            │
+│     ↓ add to Dispatch Catalog                               │
 └──────────────────────────────────────────────────────────────┘
 ```
 
 ### 6.3 uskill vs uplugin
 
-| 维度 | uskill | uplugin |
-|------|--------|---------|
-| 本质 | 声明式配置 + contextInjection | 可执行代码 + Surface |
-| 触发 | onKeyword.reply / onProactive | beforeUserMessage 钩子 |
-| 权限 | engine_read, engine_inject, system_notification | 完整 8 级权限 |
-| 沙箱 | 无 (不执行代码) | Worker Thread 隔离 |
+| Dimension | uskill | uplugin |
+|-----------|--------|---------|
+| Essence | Declarative config + contextInjection | Executable code + Surface |
+| Trigger | onKeyword.reply / onProactive | beforeUserMessage hook |
+| Permissions | engine_read, engine_inject, system_notification | Full 8-level permissions |
+| Sandbox | None (no code execution) | Worker Thread isolation |
 | UI | ❌ | ✅ Surface Widget (HTML) |
-| 失败回退 | — | injectTemplate (无 Worker 时) |
-| 代码量 | ~20 行 JSON | ~50 行 JSON + HTML |
-| 复杂场景 | ❌ 简单消息注入 | ✅ API 调用 + 状态 + UI |
+| Failure fallback | — | injectTemplate (when no Worker) |
+| Code volume | ~20 lines JSON | ~50 lines JSON + HTML |
+| Complex scenarios | ❌ Simple message injection | ✅ API calls + state + UI |
 
-### 6.4 沙箱 (uplugin)
+### 6.4 Sandbox (uplugin)
 
-**文件**：`openforu/sandbox/`
+**File**: `openforu/sandbox/`
 
 ```
-uplugin 执行:
-  ① 用户部署 → 写入 data/openforu/uplugins/{slug}/
-  ② 触发调用 → UpluginSandboxHost 创建 Worker Thread
-  ③ Worker 内执行 uplugin 代码
-  ④ 通过 sandboxApiBridge 访问受限 API:
-       getEngineSnapshot()     — 引擎读取
-       readOwnFile(path)       — 白名单路径 (路径穿越防护)
-       writeOwnFile(path,data) — 需要 data_write 权限
+uplugin execution:
+  ① User deploys → write to data/openforu/uplugins/{slug}/
+  ② Trigger invoke → UpluginSandboxHost creates Worker Thread
+  ③ Execute uplugin code inside Worker
+  ④ Access restricted API via sandboxApiBridge:
+       getEngineSnapshot()     — engine read
+       readOwnFile(path)       — whitelist paths (path traversal protection)
+       writeOwnFile(path,data) — requires data_write permission
        fetch(url)              — HTTPS only, 256KB max, 15s timeout
-       notify(title,body)      — 需要 system_notification
-       emitEvent(event)        — 需要 engine_read
-  ⑤ 返回 invokeResult → 注入上下文 / UI 通知
+       notify(title,body)      — requires system_notification
+       emitEvent(event)        — requires engine_read
+  ⑤ Return invokeResult → inject context / UI notification
 
-  失败回退:
-    Worker 初始化失败 → injectTemplate (无代码执行)
-    inject 也失败 → 静默降级, 不阻塞聊天
+  Failure fallback:
+    Worker init failure → injectTemplate (no code execution)
+    inject also fails → silent degrade, don't block chat
 ```
 
-### 6.5 能力探测
+### 6.5 Capability Probe
 
-**文件**：`openforu/extensionIntentClassifier.ts`
+**File**: `openforu/extensionIntentClassifier.ts`
 
-纯规则的显式需求检测 + LLM 辅助的隐式需求检测：
+Pure-rule explicit demand detection + LLM-assisted implicit demand detection:
 
 ```typescript
-// 显式: "帮我做一个..."
+// Explicit: "Help me make a..."
 detectExtensionDemandExplicit(msg):
   pattern: /帮我[做创建写]一个|帮我做个工具|能做一个.*吗/
 
-// 隐式: "要是能自动就好了"
+// Implicit: "Wish it could auto..."
 shouldRunCapabilityProbe(msg, queryEmbed?, createToolAnchor?):
   if queryEmbed && createToolAnchor:
-    cosine(queryEmbed, createToolAnchor) ≥ 0.45 → 触发 LLM 分类
+    cosine(queryEmbed, createToolAnchor) ≥ 0.45 → trigger LLM classification
   else:
-    规则关键词: /要是能|能自动|有个工具就好了/
+    rule keywords: /要是能|能自动|有个工具就好了/
 
-// LLM 分类
+// LLM classification
 classifyExtensionIntent(msg, context, llm):
-  输出: {
+  output: {
     category: 'extension_demand' | 'ephemeral_task' | 'emotional_vent' | 'chat',
     confidence: 0-1,
     suggested_name?: string,
     reasoning?: string
   }
-  // 门控: recurring + gap≥0.62 + implementable≥0.68 + composite≥0.72
+  // gate: recurring + gap≥0.62 + implementable≥0.68 + composite≥0.72
 ```
 
-### 6.6 Refine 模式
+### 6.6 Refine Mode
 
-已部署的扩展可继续优化：
+Deployed extensions can be iteratively improved:
 
 ```
 openRefineInPlan(extensionId, opts?):
-  ① 查找已关联的 Plan 工作区
-  ② 找不到 → 创建新工作区 "优化 · 扩展名"
+  ① Find linked Plan workspace
+  ② Not found → create new workspace "Refine · extension name"
   ③ linkExtensionToPlan(sessionId, extensionId)
-  ④ 设置 refineMode = true, planConfirmed = false
-  ⑤ 用户描述修改需求 → redeployPlan() 重新生成
+  ④ Set refineMode = true, planConfirmed = false
+  ⑤ User describes changes → redeployPlan() regenerate
 ```
 
-这种"聊天造扩展→不满意再聊再改"的闭环，是 OpenForU 的核心体验。
+The "chat to build extension → not satisfied → chat to refine" loop is OpenForU's core experience.
 
 ---
 
-## 7. GameMode 游戏陪伴系统
+## 7. GameMode Game Companion System
 
-**目录**：`src/main/extensions/gamemode/`
+**Directory**: `src/main/extensions/gamemode/`
 
-### 7.1 定位
+### 7.1 Positioning
 
-GameMode 让 Ackem 能在游戏中陪伴用户 — 看棋局、给反应、记回忆，**不直接参与游戏逻辑**。
+GameMode lets Ackem accompany users during games — watch the board, react, remember moments, **without directly participating in game logic**.
 
-### 7.2 架构
+### 7.2 Architecture
 
 ```
-GameProvider 接口:
+GameProvider interface:
   connect(config) / disconnect()
   getStatus()
   pushEvent(event)
-  onEvent(callback)          ← 游戏事件监听
-  updateSnapshot(snapshot)   ← 引擎快照同步
+  onEvent(callback)          ← game event listener
+  updateSnapshot(snapshot)   ← engine snapshot sync
   drainEvents()
 
-GameModeCoordinator (单例):
+GameModeCoordinator (singleton):
   registerProvider(provider)
   activateGame(gameId, config)
   deactivateGame()
-  invoke(gameId, method, params)  ← RPC 调用
+  invoke(gameId, method, params)  ← RPC call
 
-集成方式:
+Integration:
   GameEvent → handleGameEvent() → ExtensionEvent
     → contextInjection + emotionHint → orchestrator
 ```
 
-### 7.3 游戏事件 → 伴侣反应
+### 7.3 Game Event → Companion Reaction
 
 ```typescript
 handleGameEvent(event):
   valance: 'positive' | 'negative' | 'neutral'
   severity: 0-1
 
-  ① 先问 provider.buildReaction(event) — 自定义反应
-  ② 无自定义 → 默认反应:
-       positive → "哇！/好耶~/太棒了！"
-       negative → "啊……/小心！/没事吧？"
-       neutral  → "嗯？/我在看呢~/继续加油~"
-  ③ severity > 0.5 → 写入记忆:
-       "[{gameId}] {event.raw}" → 注入 LLM 上下文
-  ④ 情绪影响:
+  ① Ask provider.buildReaction(event) first — custom reaction
+  ② No custom → default reaction:
+       positive → "Wow!/Yay~/Amazing!"
+       negative → "Ah.../Watch out!/Are you okay?"
+       neutral  → "Hmm?/I'm watching~/Keep going~"
+  ③ severity > 0.5 → write to memory:
+       "[{gameId}] {event.raw}" → inject into LLM context
+  ④ Emotion impact:
        positive: aff+2, sec+1, aro+2
        negative: aff-1, sec-2, aro+2
 ```
 
 ---
 
-## 8. 策略层 (Policy)
+## 8. Policy Layer
 
-**目录**：`src/main/extensions/policy/` (11 个文件)
+**Directory**: `src/main/extensions/policy/` (11 files)
 
-### 8.1 ProactiveGate — "该不该说话"
+### 8.1 ProactiveGate — "Should I Speak?"
 
-**文件**：`policy/proactiveGate.ts`
+**File**: `policy/proactiveGate.ts`
 
-9 条纯规则决策树 (<1ms)：
+9 pure-rule decision tree (<1ms):
 
 ```
 evaluateProactiveGate({ snapshot, runtime, matchedHabits, foregroundBusy, budgetExceeded })
     │
-    ├── ① 长时 DND/会议习惯 → silent (30min)
-    ├── ② rifts ≥ 2 (刚吵过架) → silent (15min)
-    ├── ③ 前台会议/PPT/专注 → silent (15min)
-    ├── ④ 注意力预算超标 → whisper (10min)
-    ├── ⑤ 情绪波动大 + 负面 → whisper (10min)
-    ├── ⑥ 情绪波动大 + 正面 + INTIMATE → proactive (5min)
-    ├── ⑦ 深夜 + 用户不在活跃 → whisper (20min)
-    ├── ⑧ 周末早上 + 关系 FAMILIAR+ → proactive (5min)
-    ├── ⑨ 短时 DND/休息习惯 → whisper (10min)
-    └── ⑩ 默认 → casual (1min)
+    ├── ① Long DND/meeting habit → silent (30min)
+    ├── ② rifts ≥ 2 (just argued) → silent (15min)
+    ├── ③ Foreground meeting/PPT/focus → silent (15min)
+    ├── ④ Attention budget exceeded → whisper (10min)
+    ├── ⑤ High emotion volatility + negative → whisper (10min)
+    ├── ⑥ High emotion volatility + positive + INTIMATE → proactive (5min)
+    ├── ⑦ Late night + user not active → whisper (20min)
+    ├── ⑧ Weekend morning + relationship FAMILIAR+ → proactive (5min)
+    ├── ⑨ Short DND/rest habit → whisper (10min)
+    └── ⑩ Default → casual (1min)
 ```
 
-proactiveLevel 影响后续调度:
-- **silent**: 不主动说话, 跳过非维护类 autonomous 扩展
-- **whisper**: 仅允许非健康类扩展, defer 健康提醒
-- **casual**: 正常触发
-- **proactive**: 可主动发起 (cooldown 缩短)
+proactiveLevel affects subsequent scheduling:
+- **silent**: don't speak proactively, skip non-maintenance autonomous extensions
+- **whisper**: only allow non-health extensions, defer health reminders
+- **casual**: normal triggering
+- **proactive**: can initiate proactively (cooldown shortened)
 
-**情绪波动计算**:
+**Emotion volatility calculation**:
 
 ```typescript
 computeAffVolatility():
-  window = 最近 10 轮 aff 值
+  window = last 10 turns of aff values
   mean = average(window)
   variance = sum((v - mean)²) / N
   return sqrt(variance)
 ```
 
-### 8.2 IntensityModulator — 语气强度
+### 8.2 IntensityModulator — Tone Intensity
 
-**文件**：`policy/intensityModulator.ts`
+**File**: `policy/intensityModulator.ts`
 
 ```
 computeIntensityModifier({ snapshot, runtime, matchedHabits }):
-  mod = 1.0 (基线)
-  if aff > 60   → +0.2   // 开心, 语气活泼
-  if aff < 20   → -0.2   // 低落, 语气平稳
-  if aro > 60   → +0.1   // 兴奋, 可以多话
-  if dom < -30  → -0.1   // 不安, 更谨慎
+  mod = 1.0 (baseline)
+  if aff > 60   → +0.2   // happy, lively tone
+  if aff < 20   → -0.2   // low, steady tone
+  if aro > 60   → +0.1   // excited, can talk more
+  if dom < -30  → -0.1   // uneasy, more cautious
   if INTIMATE   → +0.1
   if STRANGER   → -0.1
-  if 深夜/夜间  → -0.15
-  if 周末早上   → +0.1
-  if 休息习惯   → -0.1
+  if late night/night → -0.15
+  if weekend morning → +0.1
+  if rest habit → -0.1
   return clamp(0.5, 1.5)
 ```
 
-### 8.3 其他策略模块
+### 8.3 Other Policy Modules
 
-| 文件 | 职责 |
-|------|------|
-| `attentionBudget.ts` | 每小时主动消息配额 (默认 3 条) |
-| `toolDecider.ts` | 根据习惯和用户偏好决定 suppress/ask/auto_invoke |
-| `userProfile.ts` | 每个扩展的用户偏好 (永久允许/拒绝/隐藏) |
-| `evaluate.ts` | 综合策略评估 (维护绕行→紧急绕行→全局 DND→...) |
-| `decisionLogStore.ts` | 决策日志持久化 (供 UI 回溯) |
-| `decisionLogRouting.ts` | 决策反馈路由 (调整后续决策) |
+| File | Responsibility |
+|------|----------------|
+| `attentionBudget.ts` | Hourly proactive message quota (default 3) |
+| `toolDecider.ts` | Decide suppress/ask/auto_invoke from habits and user preferences |
+| `userProfile.ts` | Per-extension user preferences (permanent allow/reject/hide) |
+| `evaluate.ts` | Comprehensive policy evaluation (maintenance bypass→emergency bypass→global DND→...) |
+| `decisionLogStore.ts` | Decision log persistence (for UI replay) |
+| `decisionLogRouting.ts` | Decision feedback routing (adjust subsequent decisions) |
 
 ---
 
-## 9. Autonomous 调度器
+## 9. Autonomous Scheduler
 
-**文件**：`dispatch/scheduler.ts`
+**File**: `dispatch/scheduler.ts`
 
-每 60s 后台 tick：
+Every 60s background tick:
 
 ```
 tickAutonomousDispatch(opts):
   │
-  ├── ① 习惯维护 (每小时)
-  │     ├── promoteShortTermHabits  短时→长时
-  │     ├── cleanupExpired          清理过期
-  │     ├── scanForegroundHistory   前台→候选习惯
-  │     └── decayLongTermHabits     长时降级 (凌晨3点)
+  ├── ① Habit maintenance (hourly)
+  │     ├── promoteShortTermHabits  short→long term
+  │     ├── cleanupExpired          cleanup expired
+  │     ├── scanForegroundHistory   foreground→candidate habits
+  │     └── decayLongTermHabits     long-term decay (3 AM)
   │
-  ├── ② 日记补写 (tryCatchUpMissedDiary)
+  ├── ② Diary catch-up (tryCatchUpMissedDiary)
   │
-  ├── ③ ProactiveGate 决策
+  ├── ③ ProactiveGate decision
   │
-  └── ④ 遍历 autonomous 扩展
-        ├── 是否到时间 (interval_ms / daily_at)
-        ├── 是否在活跃时段内
-        ├── proactiveGate = silent 时跳过非维护类
-        ├── proposeGate = whisper 时 defer 健康类
+  └── ④ Iterate autonomous extensions
+        ├── Is it time (interval_ms / daily_at)
+        ├── Within active time window
+        ├── proactiveGate = silent → skip non-maintenance
+        ├── proposeGate = whisper → defer health reminders
         ├── evaluateAutonomousExtensionPolicy
-        ├── toolDecider 判断
-        └── 执行 → recordProactiveMessage
+        ├── toolDecider judgment
+        └── Execute → recordProactiveMessage
 ```
 
 ---
 
-## 10. Community 生态（当前关闭）
+## 10. Community Ecosystem (Currently Closed)
 
-**文件**：`src/main/extensions/ecosystem/`
+**File**: `src/main/extensions/ecosystem/`
 
-**开关**：`src/shared/communityExtensionFeature.ts` → `COMMUNITY_EXTENSIONS_OPEN = false`
+**Switch**: `src/shared/communityExtensionFeature.ts` → `COMMUNITY_EXTENSIONS_OPEN = false`
 
-### 10.1 包格式
+### 10.1 Package Format
 
-`.ackem-ext` 文件 = zip + 签名侧车：
+`.ackem-ext` file = zip + signature sidecar:
 
 ```
 package.ackem-ext
 ├── format_version: "1.0"
 ├── publisherId: "community_publisher"
 ├── manifest.json
-├── files/                     # 扩展文件 (keyed by path)
-├── files.sha256               # 文件摘要
-└── signature.sig              # Ed25519 签名
+├── files/                     # extension files (keyed by path)
+├── files.sha256               # file digests
+└── signature.sig              # Ed25519 signature
 ```
 
-### 10.2 信任链
+### 10.2 Trust Chain
 
 ```
 verify():
   ① manifest.json → canonical JSON
-  ② files.sha256 → 验证每个文件的 SHA-256
-  ③ signature.sig → 用 publisher 公钥验证
-  ④ trust/publishers.json → 检查 publisher 是否受信任
-  ⑤ scope 检查 → publisher 是否有权限发布此 ID
+  ② files.sha256 → verify SHA-256 of each file
+  ③ signature.sig → verify with publisher public key
+  ④ trust/publishers.json → check publisher is trusted
+  ⑤ scope check → publisher has permission to publish this ID
 ```
 
-### 10.3 关闭时的行为
+### 10.3 Behavior When Closed
 
-- `coordinator.boot()` 不调用 community.boot()
-- `installCommunityPackage()` 返回「社区扩展市场暂未开放」
-- `data/extensions/community/` 不会被加载
-- 贡献者路径：本机 `u/` 试验 → PR 到 `ackem/` → 随发行包分发
+- `coordinator.boot()` does not call community.boot()
+- `installCommunityPackage()` returns "Community extension marketplace not yet open"
+- `data/extensions/community/` is not loaded
+- Contributor path: local `u/` experiment → PR to `ackem/` → shipped with release
 
 ---
 
-## 11. 远景：居家智能体伴侣
+## 11. Vision: Home Intelligent Agent Companion
 
-Ackem 的扩展系统设计从一开始就考虑了 **从聊天伴侣到居家智能体** 的进化路径。
+Ackem's extension system was designed from the start for the evolution path **from chat companion to home intelligent agent**.
 
-### 11.1 当前能力
+### 11.1 Current Capabilities
 
 ```
-当前 (v1.0):
+Current (v1.0):
   ┌─────────────────────────────────────────┐
-  │  聊天伴侣                                │
-  │  · 情绪感知 + 关系经营                    │
-  │  · 记忆 + 主动关怀                       │
-  │  · 基础 Skill: 天气/搜索/提醒            │
-  │  · OpenForU: 用户自建 uskill/uplugin     │
-  │  · GameMode: 游戏陪伴                    │
+  │  Chat companion                          │
+  │  · Emotion awareness + relationship care │
+  │  · Memory + proactive care               │
+  │  · Basic Skills: weather/search/reminders│
+  │  · OpenForU: user-built uskill/uplugin   │
+  │  · GameMode: game companion              │
   └─────────────────────────────────────────┘
 ```
 
-### 11.2 近期目标
+### 11.2 Near-Term Goals
 
 ```
-近期 (v1.x):
+Near-term (v1.x):
   ┌─────────────────────────────────────────┐
-  │  个人助理                                │
-  │  · 日程管理 (日历同步 + 智能提醒)        │
-  │  · 邮件/消息摘要                         │
-  │  · 文件管理 (整理/归档/搜索)             │
-  │  · Web 搜索 + 知识问答                   │
-  │  · TTS 语音输出 + 简单语音输入           │
-  │  · 桌面自动化 (窗口管理/快捷键)          │
+  │  Personal assistant                      │
+  │  · Schedule management (calendar sync +  │
+  │    smart reminders)                      │
+  │  · Email/message summaries               │
+  │  · File management (organize/archive/    │
+  │    search)                               │
+  │  · Web search + Q&A                      │
+  │  · TTS voice output + simple voice input │
+  │  · Desktop automation (window mgmt/      │
+  │    shortcuts)                            │
   └─────────────────────────────────────────┘
 ```
 
-### 11.3 中长期愿景
+### 11.3 Mid-to-Long-Term Vision
 
 ```
-中期 (v2.x):
+Mid-term (v2.x):
   ┌─────────────────────────────────────────┐
-  │  居家控制中心                            │
-  │  · IoT 设备控制 (米家/HomeKit 桥接)     │
-  │     "把客厅灯调到暖色"                   │
-  │     "空调开到 26 度"                    │
-  │  · 环境感知 (温度/湿度/空气质量)        │
-  │  · 安防监控 (摄像头事件通知)             │
-  │  · 能源管理 (用电统计/节能建议)         │
-  │  · 多房间语音分布                       │
-  │  · 定时场景 (起床/离家/睡眠自动化)      │
+  │  Home control center                     │
+  │  · IoT device control (Mi Home/HomeKit   │
+  │    bridge)                               │
+  │     "Set living room lights to warm"     │
+  │     "Set AC to 26°C"                     │
+  │  · Environment sensing (temp/humidity/   │
+  │    air quality)                          │
+  │  · Security monitoring (camera event     │
+  │    notifications)                        │
+  │  · Energy management (usage stats/       │
+  │    savings tips)                         │
+  │  · Multi-room voice distribution         │
+  │  · Scheduled scenes (wake/away/sleep     │
+  │    automation)                           │
   └─────────────────────────────────────────┘
 
-长期 (v3.x):
+Long-term (v3.x):
   ┌─────────────────────────────────────────┐
-  │  智能体生态                              │
-  │  · 社区扩展市场 (已设计, 待开放)        │
-  │  · 多智能体协作 (Ackem 调用其他 AI)     │
-  │  · 跨设备同步 (手机/PC/智能音箱)        │
-  │  · 主动学习用户习惯 (非 LLM, 本地)     │
-  │  · 家庭成员识别 + 个性化                │
-  │  · 健康管理 (用药提醒/运动建议/数据)    │
-  │  · 第三方服务集成 (外卖/打车/购物)      │
+  │  Agent ecosystem                         │
+  │  · Community extension marketplace       │
+  │    (designed, pending open)              │
+  │  · Multi-agent collaboration (Ackem      │
+  │    calls other AIs)                      │
+  │  · Cross-device sync (phone/PC/smart     │
+  │    speaker)                              │
+  │  · Proactive habit learning (non-LLM,    │
+  │    local)                                │
+  │  · Family member recognition +           │
+  │    personalization                       │
+  │  · Health management (medication/        │
+  │    exercise/data)                        │
+  │  · Third-party integrations (food        │
+  │    delivery/ride-hailing/shopping)       │
   └─────────────────────────────────────────┘
 ```
 
-### 11.4 架构支撑
+### 11.4 Architecture Support
 
-扩展系统现有设计已经为这些远景做了准备：
+Existing extension system design already prepares for these visions:
 
-| 远景需求 | 现有架构支撑 |
-|---------|-------------|
-| IoT 设备控制 | `network_outbound` 权限 + Worker 沙箱 + auto_invoke dispatch |
-| 定时场景 | `autonomous` mode + `scheduled` subtype + 习惯系统 |
-| 环境感知 | `foreground_detect` 权限 + proactive 技能 + contextInjection |
-| 多房间分布 | IPC 协议 + ExtensionEvent 标准化 |
-| 社区生态 | `.ackem-ext` 包格式 + Ed25519 签名 + 信任链 |
-| 语音交互 | TTS Plugin (stub) + 通道系统 (weixin/) |
-| 用户习惯学习 | habitsStore + decisionLog + userProfile |
-| 第三方集成 | OpenForU 沙箱 + HTTPS 出站 + 权限审批 |
-| 主动关怀 | ProactiveGate + IntensityModulator + attentionBudget |
+| Vision need | Existing architecture support |
+|-------------|------------------------------|
+| IoT device control | `network_outbound` permission + Worker sandbox + auto_invoke dispatch |
+| Scheduled scenes | `autonomous` mode + `scheduled` subtype + habit system |
+| Environment sensing | `foreground_detect` permission + proactive skills + contextInjection |
+| Multi-room distribution | IPC protocol + ExtensionEvent standardization |
+| Community ecosystem | `.ackem-ext` package format + Ed25519 signature + trust chain |
+| Voice interaction | TTS Plugin (stub) + channel system (weixin/) |
+| User habit learning | habitsStore + decisionLog + userProfile |
+| Third-party integration | OpenForU sandbox + HTTPS outbound + permission approval |
+| Proactive care | ProactiveGate + IntensityModulator + attentionBudget |
 
-### 11.5 扩展接入路线图
+### 11.5 Extension Integration Roadmap
 
 ```
-外部能力接入步骤:
-  1. 实现 SkillHandler (规则/tool/proactive)
-  2. 定义 DispatchConfig (触发方式 + 活跃时段)
-  3. 声明所需权限 (engine_read / network_outbound / ...)
-  4. 注册到 SkillRegistry
-  5. LLM function calling 或 dispatch 自动触发
+External capability integration steps:
+  1. Implement SkillHandler (rule/tool/proactive)
+  2. Define DispatchConfig (trigger method + active time windows)
+  3. Declare required permissions (engine_read / network_outbound / ...)
+  4. Register to SkillRegistry
+  5. LLM function calling or dispatch auto trigger
 
-家居设备接入:
-  1. 本地 Hub 服务 (进程内或子进程)
-  2. OpenForU uplugin (沙箱 Worker + HTTPS API)
-  3. community 签名包 (审核 + 签名 + 分发)
-  4. (未来) 设备制造商官方插件
+Smart home device integration:
+  1. Local Hub service (in-process or subprocess)
+  2. OpenForU uplugin (sandbox Worker + HTTPS API)
+  3. community signed package (review + sign + distribute)
+  4. (Future) Device manufacturer official plugins
 
-用户自定义:
-  1. 聊天描述需求 → Plan Agent → 生成部署 (无需写代码)
-  2. 不满意 → Refine 模式继续优化
-  3. 高级用户 → 直接编辑 data/openforu/ 下的 JSON
+User customization:
+  1. Describe need in chat → Plan Agent → generate and deploy (no code)
+  2. Not satisfied → Refine mode to iterate
+  3. Advanced users → directly edit JSON under data/openforu/
 ```
 
 ---
 
-## 12. 修改指南
+## 12. Modification Guide
 
-| 你想… | 先看 |
-|-------|------|
-| 新增官方 Skill | `skills/registry.ts` + `skills/builtin/` |
-| 新增官方 Plugin | `plugins/registry.ts` + 生命周期钩子 |
-| 改调度决策树 | `engine/dispatchRouter.ts` routeDispatch |
-| 改调度阈值 | `engine/dispatchRouter.ts` AUTO_THRESHOLD / ASK_THRESHOLD |
-| 改 Intent 消解 | `dispatch/intentResolver.ts` |
-| 改 Embedding 路由 | `dispatch/candidateCollector.ts` collectEmbeddingCandidates |
-| 改 OpenForU Plan 流程 | `openforu/coordinator.ts` + `agentPipeline.ts` |
-| 改权限系统 | `openforu/permissionGate.ts` + `protocols.ts` |
-| 改沙箱实现 | `openforu/sandbox/` + `sandboxApiBridge.ts` |
-| 改主动消息策略 | `policy/proactiveGate.ts` |
-| 改语气强度调制 | `policy/intensityModulator.ts` |
-| 改注意力预算 | `policy/attentionBudget.ts` |
-| 改 autonomous tick | `dispatch/scheduler.ts` |
-| 改能力探测 | `openforu/extensionIntentClassifier.ts` |
-| 改社区生态 (日后开放) | `ecosystem/` |
-| 改能力列表文案 | `dispatch/extensionCapabilityListing.ts` |
+| You want to… | Start here |
+|--------------|------------|
+| Add official Skill | `skills/registry.ts` + `skills/builtin/` |
+| Add official Plugin | `plugins/registry.ts` + lifecycle hooks |
+| Change dispatch decision tree | `engine/dispatchRouter.ts` routeDispatch |
+| Change dispatch thresholds | `engine/dispatchRouter.ts` AUTO_THRESHOLD / ASK_THRESHOLD |
+| Change intent resolution | `dispatch/intentResolver.ts` |
+| Change embedding routing | `dispatch/candidateCollector.ts` collectEmbeddingCandidates |
+| Change OpenForU Plan flow | `openforu/coordinator.ts` + `agentPipeline.ts` |
+| Change permission system | `openforu/permissionGate.ts` + `protocols.ts` |
+| Change sandbox implementation | `openforu/sandbox/` + `sandboxApiBridge.ts` |
+| Change proactive message policy | `policy/proactiveGate.ts` |
+| Change tone intensity modulation | `policy/intensityModulator.ts` |
+| Change attention budget | `policy/attentionBudget.ts` |
+| Change autonomous tick | `dispatch/scheduler.ts` |
+| Change capability probe | `openforu/extensionIntentClassifier.ts` |
+| Change community ecosystem (future) | `ecosystem/` |
+| Change capability listing copy | `dispatch/extensionCapabilityListing.ts` |
 
 ---
 
-## 13. 相关文档
+## 13. Related Documentation
 
-| 文档 | 链接 |
-|------|------|
-| 扩展开发者接口协议 | [DEVELOPER-EXTENSION-PROTOCOL.md](../DEVELOPER-EXTENSION-PROTOCOL.md) |
-| OpenForU 内部协议 | [openforu/PROTOCOL.md](../../src/main/extensions/openforu/PROTOCOL.md) |
-| 整体系统 | [00-overall-system.md](./00-overall-system.md) |
-| 脑系统 | [01-brain-system.md](./01-brain-system.md) |
-| 神经系统 | [04-neural-system.md](./04-neural-system.md) |
+| Document | Link |
+|----------|------|
+| Extension developer interface protocol | [DEVELOPER-EXTENSION-PROTOCOL.md](../DEVELOPER-EXTENSION-PROTOCOL.md) |
+| OpenForU internal protocol | [openforu/PROTOCOL.md](../../src/main/extensions/openforu/PROTOCOL.md) |
+| Overall system | [00-overall-system.md](./00-overall-system.md) |
+| Brain system | [01-brain-system.md](./01-brain-system.md) |
+| Neural system | [04-neural-system.md](./04-neural-system.md) |
 
-*扩展系统 · Ackem v1.0.0 · 2026-06*
+*Extension System · Ackem v1.0.0 · 2026-06*

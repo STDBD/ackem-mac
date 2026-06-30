@@ -1,13 +1,16 @@
 # 敏感能力
 
+> **语言：** 中文 · [English](./sensitive-capabilities.md)
+
 > **产品**：Ackem v1.0.0  
+> **读者**：法务、高级用户、平台审核  
 > **原则**：默认关闭、逐项授权、本地优先、可审计
 
 ---
 
 ## 1. 概述
 
-本文档列出 Ackem 中可能触及用户隐私或系统安全的敏感能力。每项能力标明：用途、数据类型、留存策略、关闭路径、当前实装状态。
+本文档列出 Ackem 中可能触及用户隐私或系统安全的敏感能力。每项能力标明：**用途、数据类型、留存策略、关闭路径、当前实装状态**。
 
 ---
 
@@ -63,7 +66,7 @@
 
 | 数据类别 | 位置 | 默认保留 | 用户可删 |
 |----------|------|----------|----------|
-| 聊天记录 | `data/companion/chat-history-*.json` | 无限制（UI 裁剪 2000 条/会话） | ✅ |
+| 聊天历史 | `data/companion/chat-history-*.json` | 无限制（UI 裁剪 2000 条/会话） | ✅ |
 | 记忆事实 | `data/memory/facts/facts.v2.json` + SQLite | 永久（自动衰减/退休） | ✅ |
 | 日记 | `data/diary/*.md` | 永久 | ✅ |
 | 前台窗口历史 | `foreground_history` 表 | 最近 N 条 | ✅（设置中清除） |
@@ -95,6 +98,6 @@
 | [perception-layer.zh.md](./perception-layer.zh.md) | 感知能力详情 |
 | [adult-and-safety-policy.zh.md](./adult-and-safety-policy.zh.md) | 成人模式与安全策略 |
 | [privacy-and-data.zh.md](./privacy-and-data.zh.md) | 数据处理说明 |
-| [architecture/05-extension-system.md](./developer/architecture/05-extension-system.md) | 扩展系统权限模型 |
+| [architecture/05-extension-system.zh.md](./developer/architecture/05-extension-system.zh.md) | 扩展系统权限模型 |
 
-*敏感能力 · Ackem v1.0.0 · 2026-06*
+*敏感能力 · Ackem v1.0.0*

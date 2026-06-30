@@ -14,7 +14,7 @@
 
 > **Source**: [GitHub](https://github.com/JasonLiu0826/Ackem) · [Gitee mirror](https://gitee.com/jason_2005/ackem)  
 > **Download**: [GitHub Releases](https://github.com/JasonLiu0826/Ackem/releases) · [Gitee Releases](https://gitee.com/jason_2005/ackem/releases)  
-> **Build**: `npm run dist:green` → `dist/release/Ackem-1.0.0-win-x64/` · [Path map](./docs/CODEBASE-PATHS.md)  
+> **Build**: `npm run dist:green` → `dist/release/Ackem-1.0.0-win-x64/` · [Path map](./docs/CODEBASE-PATHS.md) · [Docs languages](./docs/I18N.md)  
 > **Status:** Ackem is still in **active testing**. As a solo-maintained project, test coverage is limited — you may hit unexpected behavior or rough edges. Frequent crashes and severe lag are uncommon, but imperfections still happen. [Open an Issue](https://github.com/JasonLiu0826/Ackem/issues) if something feels off.
 
 [中文文档](./README.zh.md) · [Privacy & data (EN)](./docs/privacy-and-data.md)
@@ -201,23 +201,26 @@ Index: [docs/developer/architecture/README.md](./docs/developer/architecture/REA
 
 ## Documentation
 
-| Purpose | EN | 中文 |
-|---------|----|------|
-| Repo paths & build artifacts | [docs/CODEBASE-PATHS.md](./docs/CODEBASE-PATHS.md) | — |
-| Open-source doc map | [docs/OPEN-SOURCE-DOC-MAP.md](./docs/OPEN-SOURCE-DOC-MAP.md) | — |
-| Extension developer protocol | [docs/developer/DEVELOPER-EXTENSION-PROTOCOL.md](./docs/developer/DEVELOPER-EXTENSION-PROTOCOL.md) | — |
-| Developer setup guide | [docs/developer/dev-setup.md](./docs/developer/dev-setup.md) | — |
-| Data directory format | [docs/memory-format.md](./docs/memory-format.md) | [docs/memory-format.zh.md](./docs/memory-format.zh.md) |
-| AI context & retrieval policy | [docs/ai-context-and-retrieval-policy.md](./docs/ai-context-and-retrieval-policy.md) | [docs/ai-context-and-retrieval-policy.zh.md](./docs/ai-context-and-retrieval-policy.zh.md) |
-| Privacy & data handling | [docs/privacy-and-data.md](./docs/privacy-and-data.md) | [docs/privacy-and-data.zh.md](./docs/privacy-and-data.zh.md) |
-| Local models setup | [docs/local-models-windows.md](./docs/local-models-windows.md) | [docs/local-models-windows.zh.md](./docs/local-models-windows.zh.md) |
-| Adult mode & safety policy | [docs/adult-and-safety-policy.md](./docs/adult-and-safety-policy.md) | [docs/adult-and-safety-policy.zh.md](./docs/adult-and-safety-policy.zh.md) |
-| Perception capabilities | [docs/perception-layer.md](./docs/perception-layer.md) | [docs/perception-layer.zh.md](./docs/perception-layer.zh.md) |
-| Sensitive capabilities | [docs/sensitive-capabilities.md](./docs/sensitive-capabilities.md) | [docs/sensitive-capabilities.zh.md](./docs/sensitive-capabilities.zh.md) |
-| Windows distribution | [docs/distribution-windows.md](./docs/distribution-windows.md) | [docs/distribution-windows.zh.md](./docs/distribution-windows.zh.md) |
-| Indexing & scale | [docs/indexing-and-scale.md](./docs/indexing-and-scale.md) | — |
-| Security policy | [SECURITY.md](./SECURITY.md) | [SECURITY.zh.md](./SECURITY.zh.md) |
-| Contributing guide | [CONTRIBUTING.md](./CONTRIBUTING.md) | [CONTRIBUTING.zh.md](./CONTRIBUTING.zh.md) |
+> **Languages:** English (`*.md`) · 中文 (`*.zh.md`) — see [I18N.md](./docs/I18N.md)
+
+| Purpose | English | 中文 |
+|---------|---------|------|
+| Repo paths & build | [CODEBASE-PATHS.md](./docs/CODEBASE-PATHS.md) | [CODEBASE-PATHS.zh.md](./docs/CODEBASE-PATHS.zh.md) |
+| Doc map (maintainers) | [OPEN-SOURCE-DOC-MAP.md](./docs/OPEN-SOURCE-DOC-MAP.md) | [OPEN-SOURCE-DOC-MAP.zh.md](./docs/OPEN-SOURCE-DOC-MAP.zh.md) |
+| Extension protocol | [DEVELOPER-EXTENSION-PROTOCOL.md](./docs/developer/DEVELOPER-EXTENSION-PROTOCOL.md) | [DEVELOPER-EXTENSION-PROTOCOL.zh.md](./docs/developer/DEVELOPER-EXTENSION-PROTOCOL.zh.md) |
+| Developer setup | [dev-setup.md](./docs/developer/dev-setup.md) | [dev-setup.zh.md](./docs/developer/dev-setup.zh.md) |
+| Architecture index | [architecture/README.md](./docs/developer/architecture/README.md) | [architecture/README.zh.md](./docs/developer/architecture/README.zh.md) |
+| Data directory | [memory-format.md](./docs/memory-format.md) | [memory-format.zh.md](./docs/memory-format.zh.md) |
+| AI context & retrieval | [ai-context-and-retrieval-policy.md](./docs/ai-context-and-retrieval-policy.md) | [ai-context-and-retrieval-policy.zh.md](./docs/ai-context-and-retrieval-policy.zh.md) |
+| Privacy & data | [privacy-and-data.md](./docs/privacy-and-data.md) | [privacy-and-data.zh.md](./docs/privacy-and-data.zh.md) |
+| Local models | [local-models-windows.md](./docs/local-models-windows.md) | [local-models-windows.zh.md](./docs/local-models-windows.zh.md) |
+| Adult mode & safety | [adult-and-safety-policy.md](./docs/adult-and-safety-policy.md) | [adult-and-safety-policy.zh.md](./docs/adult-and-safety-policy.zh.md) |
+| Perception | [perception-layer.md](./docs/perception-layer.md) | [perception-layer.zh.md](./docs/perception-layer.zh.md) |
+| Sensitive capabilities | [sensitive-capabilities.md](./docs/sensitive-capabilities.md) | [sensitive-capabilities.zh.md](./docs/sensitive-capabilities.zh.md) |
+| Windows distribution | [distribution-windows.md](./docs/distribution-windows.md) | [distribution-windows.zh.md](./docs/distribution-windows.zh.md) |
+| Indexing & scale | [indexing-and-scale.md](./docs/indexing-and-scale.md) | [indexing-and-scale.zh.md](./docs/indexing-and-scale.zh.md) |
+| Security | [SECURITY.md](./SECURITY.md) | [SECURITY.zh.md](./SECURITY.zh.md) |
+| Contributing | [CONTRIBUTING.md](./CONTRIBUTING.md) | [CONTRIBUTING.zh.md](./CONTRIBUTING.zh.md) |
 | Code of Conduct | [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) | [CODE_OF_CONDUCT.zh.md](./CODE_OF_CONDUCT.zh.md) |
 
 ---

@@ -1,78 +1,80 @@
-# 发布检查清单 · Release Checklist
+# Release Checklist
 
-> **读者**：维护者  
-> **适用**：Ackem v1.0.0 及后续版本发布  
-> **源码仓库**：[JasonLiu0826/Ackem](https://github.com/JasonLiu0826/Ackem)
+> **Language:** English · [中文](./release-checklist.zh.md)
+
+> **Audience:** Maintainers  
+> **Applies to:** Ackem v1.0.0 and later releases  
+> **Source repo:** [JasonLiu0826/Ackem](https://github.com/JasonLiu0826/Ackem)
 
 ---
 
-## 1. 发布流程概览
+## 1. Release Flow Overview
 
 ```
-开发者分支 → main 合并 → 构建 → 冒烟 → 发布 GitHub Release
+Developer branch → merge to main → build → smoke test → GitHub Release
 ```
 
 ---
 
-## 2. 发布前检查
+## 2. Pre-Release Checks
 
-### 2.1 代码检查
+### 2.1 Code checks
 
-- [ ] `main` 分支包含所有目标 PR
-- [ ] CHANGELOG.md 已更新（版本号、日期、变更条目）
-- [ ] `package.json` version 已更新
-- [ ] `electron-builder.yml` `extraMetadata.version` 与 package.json 一致
-- [ ] TypeScript 类型检查通过：`npm run typecheck`
-- [ ] 所有测试通过：`npm test`
-- [ ] 文档同步：`npm run sync:release-doc`
+- [ ] `main` contains all target PRs
+- [ ] CHANGELOG.md updated (version, date, change entries)
+- [ ] `package.json` version bumped
+- [ ] `electron-builder.yml` `extraMetadata.version` matches package.json
+- [ ] TypeScript check passes: `npm run typecheck`
+- [ ] All tests pass: `npm test`
+- [ ] Docs synced: `npm run sync:release-doc`
 
-### 2.2 安全与隐私检查
+### 2.2 Security and privacy
 
-- [ ] 不含 `.env`、`.env.*`、`data/`、`*.log` 文件
-- [ ] `electron-builder.yml` `files` 配置正确排除隐私数据
-- [ ] `resources/` 不含未授权素材
-- [ ] `voice-service/` 不含大体积未使用模型
+- [ ] No `.env`, `.env.*`, `data/`, or `*.log` files included
+- [ ] `electron-builder.yml` `files` correctly excludes private data
+- [ ] `resources/` contains no unlicensed assets
+- [ ] `voice-service/` contains no unused large models
 
-### 2.3 实机冒烟（干净机器）
+### 2.3 Live smoke test (clean machine)
 
-- [ ] 绿色版解压后首次启动正常（~10-30s）
-- [ ] LLM 配置后可收发消息
-- [ ] 记忆检索可用
-- [ ] 扩展列表加载正常
-- [ ] 设置页面可读写
-- [ ] 系统托盘可操作
+- [ ] Portable build starts on first run (~10–30s)
+- [ ] Messages send/receive after LLM configuration
+- [ ] Memory retrieval works
+- [ ] Extension list loads
+- [ ] Settings page reads/writes correctly
+- [ ] System tray is usable
 
 ---
 
-## 3. 构建命令
+## 3. Build Commands
 
 ```bash
-# 1. 构建主程序
+# 1. Build main app
 npm run build
 
-# 2. 打包绿色版（推荐 —— 默认发布格式）
+# 2. Package portable build (recommended — default release format)
 npm run dist:green
-# 输出：dist/release/Ackem-{version}-win-x64/
+# Output: dist/release/Ackem-{version}-win-x64/
 
-# 3. 可选：NSIS 安装包
+# 3. Optional: NSIS installer
 npm run dist:setup
-# 输出：dist/release/Ackem-{version}-Setup-x64.exe
+# Output: dist/release/Ackem-{version}-Setup-x64.exe
 ```
 
-### 构建说明
+### Build options
 
-| 选项 | 绿色版 (zip) | 安装包 (NSIS) |
+| Option | Portable (zip) | Installer (NSIS) |
 |------|-------------|---------------|
-| 便携 `data/` | ✅ 默认 | 可选 |
-| 首次启动速度 | 快（无需安装） | 中等 |
-| 杀软误报风险 | 低 | 较高 |
-| 推荐场景 | GitHub Release 默认 | Windows 商店/企业分发 |
+| Portable `data/` | ✅ default | Optional |
+| First-start speed | Fast (no install) | Medium |
+| AV false-positive risk | Low | Higher |
+| Recommended for | GitHub Release default | Store/enterprise distribution |
 
 ---
 
-## 4. 发布产物检查
+## 4. Release Artifact Checks
 
-绿色版目录结构应包含：
+Portable directory should contain:
 
 ```
 Ackem-{version}-win-x64/
@@ -80,98 +82,98 @@ Ackem-{version}-win-x64/
 ├── 启动 Ackem.bat
 ├── Uninstall Ackem.bat
 ├── resources/
-│   ├── app.asar        ← 主程序
-│   └── models/         ← Embedding 模型（预先打包）
-├── voice-service/      ← 语音运行时
-├── docs/               ← 文档副本
-├── d3/                 ← 运行时依赖
-├── ...                 ← 其他 Node.js 依赖
-└── chrome_100_percent.pak, locales/, etc.  ← Electron 运行时
+│   ├── app.asar        ← main app
+│   └── models/         ← embedding models (pre-bundled)
+├── voice-service/      ← voice runtime
+├── docs/               ← doc copy
+├── d3/                 ← runtime dependency
+├── ...                 ← other Node.js dependencies
+└── chrome_100_percent.pak, locales/, etc.  ← Electron runtime
 ```
 
-**不应包含**：
+**Must NOT contain:**
 
 ```
-❌ data/                  ← 用户数据（首次运行时创建）
-❌ .env / .env.*          ← 环境变量
-❌ src/                   ← TypeScript 源码
-❌ node_modules/          ← 开发依赖
+❌ data/                  ← user data (created at first run)
+❌ .env / .env.*          ← environment variables
+❌ src/                   ← TypeScript source
+❌ node_modules/          ← dev dependencies
 ```
 
 ---
 
 ## 5. GitHub Release
 
-### 5.1 创建 Release
+### 5.1 Create release
 
-1. 在 GitHub 创建 Tag：`v{version}`（如 `v1.0.0`）
-2. 上传绿色版 zip：`Ackem-{version}-win-x64.zip`
-3. 可选上传安装包：`Ackem-{version}-Setup-x64.exe`
-4. 编写 Release Notes（从 CHANGELOG.md 摘录）
+1. Create tag on GitHub: `v{version}` (e.g. `v1.0.0`)
+2. Upload portable zip: `Ackem-{version}-win-x64.zip`
+3. Optionally upload installer: `Ackem-{version}-Setup-x64.exe`
+4. Write release notes (excerpt from CHANGELOG.md)
 
-### 5.2 Release Notes 模板
+### 5.2 Release notes template
 
 ```markdown
 ## Ackem v{version}
 
-{简短介绍}
+{Short intro}
 
-### 下载
+### Downloads
 
-| 包 | 说明 |
+| Package | Notes |
 |----|------|
-| Ackem-{version}-win-x64.zip | 绿色版（推荐），解压即用 |
-| Ackem-{version}-Setup-x64.exe | NSIS 安装包 |
+| Ackem-{version}-win-x64.zip | Portable (recommended), extract and run |
+| Ackem-{version}-Setup-x64.exe | NSIS installer |
 
-### 变更
+### Changes
 
 **Added**
-- {新功能}
+- {New feature}
 
 **Changed**
-- {改进}
+- {Improvement}
 
 **Fixed**
-- {Bug 修复}
+- {Bug fix}
 
 **Known Issues**
-- {已知问题}
+- {Known issue}
 
-### 资源
+### Resources
 
-- LLM Embedding 模型首次启动自动解压
-- 语音服务需单独下载（若需要）
+- LLM embedding models auto-extract on first start
+- Voice service downloaded separately if needed
 ```
 
-### 5.3 发布后
+### 5.3 After release
 
-- [ ] 确认 Release 页面可访问
-- [ ] 确认 zip 可下载
-- [ ] 在干净 Windows 机器上验证绿色版
-- [ ] 通知用户（如适用）
-
----
-
-## 6. 版本号规则
-
-遵循 `major.minor.patch`：
-
-| 变动 | 示例 |
-|------|------|
-| 不兼容 API/架构变更 | v2.0.0 |
-| 新功能，向后兼容 | v1.1.0 |
-| Bug 修复 | v1.0.1 |
-| 文档/构建变更 | 无需版本号变更 |
+- [ ] Release page is accessible
+- [ ] Zip is downloadable
+- [ ] Portable build verified on a clean Windows machine
+- [ ] Users notified if applicable
 
 ---
 
-## 7. 相关文档
+## 6. Version Numbering
 
-| 文档 | 内容 |
+Follow `major.minor.patch`:
+
+| Change | Example |
 |------|------|
-| [dev-setup.md](./dev-setup.md) | 构建环境 |
-| [testing.md](./testing.md) | 测试指南 |
-| [docs/distribution-windows.md](../distribution-windows.md) | 分发说明 |
-| [CONTRIBUTING.md](../../CONTRIBUTING.md) | 贡献指南 |
+| Breaking API/architecture change | v2.0.0 |
+| New feature, backward compatible | v1.1.0 |
+| Bug fix | v1.0.1 |
+| Docs/build only | No version bump required |
+
+---
+
+## 7. Related Documentation
+
+| Document | Content |
+|------|------|
+| [dev-setup.md](./dev-setup.md) | Build environment |
+| [testing.md](./testing.md) | Testing guide |
+| [docs/distribution-windows.md](../distribution-windows.md) | Distribution notes |
+| [CONTRIBUTING.md](../../CONTRIBUTING.md) | Contribution guide |
 
 *Release Checklist · Ackem v1.0.0 · 2026-06*

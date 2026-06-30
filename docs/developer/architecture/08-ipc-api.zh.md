@@ -1,26 +1,26 @@
-# IPC API
+# IPC 接口 · IPC API
 
-> **Language:** English · [中文](./08-ipc-api.zh.md)
+> **语言：** 中文 · [English](./08-ipc-api.md)
 
-> **Layer:** Process boundary bridge  
-> **Codename:** Preload Bridge  
-> **Core question:** How does the renderer process communicate with the main process?
+> **层级**：进程边界桥  
+> **代号**：Preload Bridge  
+> **核心问题**：渲染进程如何与主进程通信？
 
 ---
 
-## 1. Design Principles
+## 1. 设计原则
 
-Ackem uses **Electron IPC (contextBridge + ipcRenderer/invoke)** as the sole channel for inter-process communication:
+Ackem 采用 **Electron IPC（contextBridge + ipcRenderer/invoke）** 作为进程通信的唯一通道：
 
-| Principle | Description |
+| 原则 | 说明 |
 |------|------|
-| **Narrow surface** | Preload exposes only a limited API; the renderer must not access Node.js directly |
-| **Async calls** | All communication goes through `invoke/listen`; no synchronous blocking |
-| **Type safety** | Preload type definitions are centralized in `src/preload/index.ts` |
-| **Push/pull separation** | Requests use `invoke` (Promise); push events use `on` (callbacks) |
-| **Extension isolation** | Extension windows use a separate preload (`surfacePreload.ts`) with a narrower API subset |
+| **窄表面** | preload 仅暴露有限 API，渲染进程不得直接访问 Node.js |
+| **异步调用** | 所有通信走 `invoke/listen`，无同步阻塞 |
+| **类型安全** | preload 类型定义集中在 `src/preload/index.ts` |
+| **推拉分离** | 请求用 `invoke`（Promise），推送事件用 `on`（回调） |
+| **扩展隔离** | 扩展窗口使用独立 preload（`surfacePreload.ts`），API 子集更窄 |
 
-### Architecture Diagram
+### 架构图
 
 ```
 Renderer Process
@@ -54,38 +54,38 @@ Main Process
 
 ---
 
-## 2. Channel Naming Convention
+## 2. 频道命名约定
 
-All IPC channels use colon-separated namespace prefixes:
+所有 IPC 通道使用冒号分隔的命名空间前缀：
 
 ```
 {domain}:{action}
 ```
 
-| Namespace | Purpose |
+| 命名空间 | 用途 |
 |----------|------|
-| `settings:*` | Settings read/write |
-| `chat:*` | Message send / streaming receive |
-| `memory:*` | Memory search / import / export |
-| `companion:*` | Companion state |
-| `ext:*` | Extension management |
-| `openforu:*` | OpenForU workspaces |
-| `desktop-agent:*` | Desktop agent |
-| `voice:*` | Voice interface |
-| `weixin:*` | WeChat bridge |
-| `ui:*` | UI state (window / tray) |
-| `files:*` | File operations |
-| `mc:*` | Deprecated; migrate to `ext:gamemode:invoke` |
+| `settings:*` | 设置读写 |
+| `chat:*` | 消息发送/流式接收 |
+| `memory:*` | 记忆搜索/导入/导出 |
+| `companion:*` | 伴侣状态 |
+| `ext:*` | 扩展管理 |
+| `openforu:*` | OpenForU 工作区 |
+| `desktop-agent:*` | 桌面代理 |
+| `voice:*` | 语音接口 |
+| `weixin:*` | 微信桥接 |
+| `ui:*` | UI 状态（窗口/托盘） |
+| `files:*` | 文件操作 |
+| `mc:*` | 已废弃，迁移到 `ext:gamemode:invoke` |
 
 ---
 
-## 3. Preload API Overview
+## 3. Preload API 总览
 
-**File:** `src/preload/index.ts`
+**文件**：`src/preload/index.ts`
 
-Exposed as `window.ackem.*`, with ~100+ methods.
+暴露为 `window.ackem.*`，约 100+ 方法。
 
-### 3.1 Settings (settings)
+### 3.1 设置 (settings)
 
 ```typescript
 window.ackem.settings = {
@@ -94,13 +94,13 @@ window.ackem.settings = {
   getAll(): Promise<Record<string, any>>,
   reset(key: string): Promise<void>,
   onChanged(cb: (key: string, value: any) => void): () => void,
-  // Deprecated below; merged into get/set
+  // 以下废弃，合并到 get/set
   getSettings: Promise<any>,
   updateSettings: Promise<void>,
 }
 ```
 
-### 3.2 Chat (chat)
+### 3.2 聊天 (chat)
 
 ```typescript
 window.ackem.chat = {
@@ -119,7 +119,7 @@ window.ackem.chat = {
 }
 ```
 
-### 3.3 Memory (memory)
+### 3.3 记忆 (memory)
 
 ```typescript
 window.ackem.memory = {
@@ -132,15 +132,15 @@ window.ackem.memory = {
   reembed(): Promise<void>,
   rebuildFtsIndex(): Promise<void>,
   exportFacts(): Promise<string>,
-  importFacts(json: string): Promise<number>,  // returns import count
-  // Associations
+  importFacts(json: string): Promise<number>,  // 返回导入数量
+  // 关联
   getAssociations(factId: string): Promise<Association[]>,
-  // Knowledge graph
+  // 知识图谱
   queryKnowledgeGraph(spo: Partial<Triple>): Promise<Triple[]>,
 }
 ```
 
-### 3.4 Companion (companion)
+### 3.4 伴侣 (companion)
 
 ```typescript
 window.ackem.companion = {
@@ -164,7 +164,7 @@ window.ackem.companion = {
 }
 ```
 
-### 3.5 Extension System (ext)
+### 3.5 扩展系统 (ext)
 
 ```typescript
 window.ackem.ext = {
@@ -177,24 +177,24 @@ window.ackem.ext = {
   listPlugins(): Promise<PluginInfo[]>,
   getPlugin(name: string): Promise<PluginInfo | null>,
   togglePlugin(name: string, enabled: boolean): Promise<void>,
-  // Install and uninstall
+  // 安装与卸载
   installFromPackage(path: string): Promise<void>,
   uninstall(name: string): Promise<void>,
-  // Extension store
+  // 扩展商店
   browseEcosystem(): Promise<EcosystemListing[]>,
   installFromEcosystem(id: string): Promise<void>,
-  // Policy
+  // 策略
   getPolicyConfig(): Promise<PolicyConfig>,
   setPolicyConfig(config: Partial<PolicyConfig>): Promise<void>,
   // Surface
   openSurface(name: string): Promise<void>,
   closeSurface(name: string): Promise<void>,
-  // Game mode
+  // 游戏模式
   gamemode: {
     invoke(action: string, payload?: any): Promise<any>,
     onEvent(cb: (event: GamemodeEvent) => void): () => void,
   },
-  // Events
+  // 事件
   onExtensionEvent(cb: (ev: ExtensionEvent) => void): () => void,
 }
 ```
@@ -215,7 +215,7 @@ window.ackem.openforu = {
 }
 ```
 
-### 3.7 Desktop Agent (desktop-agent)
+### 3.7 桌面代理 (desktop-agent)
 
 ```typescript
 window.ackem['desktop-agent'] = {
@@ -226,7 +226,7 @@ window.ackem['desktop-agent'] = {
 }
 ```
 
-### 3.8 Voice (voice)
+### 3.8 语音 (voice)
 
 ```typescript
 window.ackem.voice = {
@@ -244,7 +244,7 @@ window.ackem.voice = {
 }
 ```
 
-### 3.9 WeChat Bridge (weixin)
+### 3.9 微信桥接 (weixin)
 
 ```typescript
 window.ackem.weixin = {
@@ -259,7 +259,7 @@ window.ackem.weixin = {
 }
 ```
 
-### 3.10 UI and Window (ui)
+### 3.10 UI 与窗口 (ui)
 
 ```typescript
 window.ackem.ui = {
@@ -269,13 +269,13 @@ window.ackem.ui = {
   setAlwaysOnTop(on: boolean): Promise<void>,
   showTrayBalloon(title: string, msg: string): Promise<void>,
   openDevTools(): Promise<void>,
-  // Diary
+  // 日记
   diary: {
     getEntries(year?: number, month?: number): Promise<DiaryEntry[]>,
     getEntry(date: string): Promise<DiaryEntry | null>,
     saveEntry(date: string, content: string): Promise<void>,
   },
-  // Weather
+  // 天气
   weather: {
     getCurrent(): Promise<WeatherInfo | null>,
     getForecast(): Promise<WeatherInfo[]>,
@@ -283,7 +283,7 @@ window.ackem.ui = {
 }
 ```
 
-### 3.11 Files (files)
+### 3.11 文件 (files)
 
 ```typescript
 window.ackem.files = {
@@ -297,99 +297,99 @@ window.ackem.files = {
 }
 ```
 
-### 3.12 Other
+### 3.12 其他
 
 ```typescript
 window.ackem = {
-  // ...all modules above
+  // ...以上各模块
 
-  // System info
+  // 系统信息
   getAppVersion(): Promise<string>,
   getPlatform(): Promise<string>,
   getSystemInfo(): Promise<SystemInfo>,
   openExternal(url: string): Promise<void>,
 
-  // Logs
+  // 日志
   getLogPaths(): Promise<string[]>,
   getLogContent(path: string, maxLines?: number): Promise<string>,
 
-  // Diagnostics
+  // 诊断
   runDiagnostics(): Promise<DiagnosticReport>,
   exportDiagnostics(): Promise<string>,
 
-  // Notification registration
+  // 通知注册
   onNotification(cb: (notif: Notification) => void): () => void,
 }
 ```
 
 ---
 
-## 4. Push Events
+## 4. 推送事件
 
-The main process pushes events to the renderer via `webContents.send`. The renderer receives them through `on*` callbacks registered in preload.
+主进程通过 `webContents.send` 推送事件给渲染进程。渲染进程通过 preload 注册的 `on*` 回调接收。
 
-### 4.1 Chat Events
+### 4.1 聊天事件
 
-| Event | Payload | Description |
+| 事件 | 载荷 | 说明 |
 |------|------|------|
-| `chat:token` | `string` | LLM streaming token |
-| `chat:done` | `SendResult` | LLM reply complete |
-| `chat:error` | `string` | LLM call error |
-| `chat:status` | `ChatStatus` | Chat status change |
+| `chat:token` | `string` | LLM 流式 token |
+| `chat:done` | `SendResult` | LLM 回复完成 |
+| `chat:error` | `string` | LLM 调用错误 |
+| `chat:status` | `ChatStatus` | 聊天状态变更 |
 
-### 4.2 Companion State Events
+### 4.2 伴侣状态事件
 
-| Event | Payload | Description |
+| 事件 | 载荷 | 说明 |
 |------|------|------|
-| `companion:state-update` | `CompanionState` | Full state push |
-| `companion:emotion-update` | `EmotionState` | Emotion change |
-| `companion:proactive-message` | `string` | Proactive message |
+| `companion:state-update` | `CompanionState` | 完整状态推送 |
+| `companion:emotion-update` | `EmotionState` | 情绪变更 |
+| `companion:proactive-message` | `string` | 主动消息 |
 
-### 4.3 Extension Events
+### 4.3 扩展事件
 
-| Event | Payload | Description |
+| 事件 | 载荷 | 说明 |
 |------|------|------|
-| `ext:event` | `ExtensionEvent` | Generic extension event |
-| `ext:gamemode:event` | `GamemodeEvent` | Game mode event |
-| `ext:surface:open` | `string` | Surface opened |
-| `ext:surface:close` | `string` | Surface closed |
+| `ext:event` | `ExtensionEvent` | 通用扩展事件 |
+| `ext:gamemode:event` | `GamemodeEvent` | 游戏模式事件 |
+| `ext:surface:open` | `string` | Surface 打开 |
+| `ext:surface:close` | `string` | Surface 关闭 |
 
-### 4.4 Desktop Agent Events
+### 4.4 桌面代理事件
 
-| Event | Payload | Description |
+| 事件 | 载荷 | 说明 |
 |------|------|------|
-| `desktop-agent:event` | `AgentEvent` | Agent status / event |
+| `desktop-agent:event` | `AgentEvent` | 代理状态/事件 |
 
-### 4.5 Voice Events
+### 4.5 语音事件
 
-| Event | Payload | Description |
+| 事件 | 载荷 | 说明 |
 |------|------|------|
-| `voice:transcript` | `string` | Speech-to-text result |
-| `voice:state` | `VoiceStatus` | Voice module state |
-| `voice:speaking` | `boolean` | Start / stop speaking |
+| `voice:transcript` | `string` | 语音转文字结果 |
+| `voice:state` | `VoiceStatus` | 语音模块状态 |
+| `voice:speaking` | `boolean` | 开始/停止朗读 |
 
-### 4.6 WeChat Events
+### 4.6 微信事件
 
-| Event | Payload | Description |
+| 事件 | 载荷 | 说明 |
 |------|------|------|
-| `weixin:message` | `WeixinMessage` | Incoming WeChat message |
-| `weixin:status` | `WeixinStatus` | WeChat bridge status |
+| `weixin:message` | `WeixinMessage` | 收到微信消息 |
+| `weixin:status` | `WeixinStatus` | 微信桥接状态 |
 
-### 4.7 Other Events
+### 4.7 其他事件
 
-| Event | Payload | Description |
+| 事件 | 载荷 | 说明 |
 |------|------|------|
-| `notification` | `Notification` | System notification |
-| `settings:changed` | `{ key, value }` | Settings change |
-| `ui:tray-action` | `string` | Tray action |
+| `notification` | `Notification` | 系统通知 |
+| `settings:changed` | `{ key, value }` | 设置变更 |
+| `ui:tray-action` | `string` | 托盘操作 |
 
 ---
 
-## 5. Surface Extension Window Narrow API
+## 5. Surface 扩展窗口 Narrow API
 
-**File:** `src/preload/surfacePreload.ts`
+**文件**：`src/preload/surfacePreload.ts`
 
-Surface extension windows load via a separate preload and expose a smaller API subset:
+Surface 扩展窗口通过独立 preload 加载，暴露的 API 子集更小：
 
 ```typescript
 window.ackem.extension = {
@@ -398,11 +398,11 @@ window.ackem.extension = {
   onStateChange(cb: (snapshot: EngineSnapshot) => void): () => void,
   invoke(action: string, payload?: any): Promise<any>,
   onEvent(cb: (event: ExtensionEvent) => void): () => void,
-  // Read-only: current locale
+  // 只读：获取当前语言
   locale: string,
 }
 
-// Surface-specific
+// Surface 特有
 window.ackem.surface = {
   close(): Promise<void>,
   setSize(width: number, height: number): Promise<void>,
@@ -411,23 +411,23 @@ window.ackem.surface = {
 }
 ```
 
-Extension windows **cannot** access:
-- `window.ackem.settings` — settings read/write
-- `window.ackem.chat` — message send
-- `window.ackem.memory` — memory search
-- `window.ackem.files` — file system
-- `window.ackem.ui` — window control
+扩展窗口 **无法** 访问：
+- `window.ackem.settings` — 设置读写
+- `window.ackem.chat` — 消息发送
+- `window.ackem.memory` — 记忆搜索
+- `window.ackem.files` — 文件系统
+- `window.ackem.ui` — 窗口控制
 
-Extensions can only communicate with the main process via `invoke` + `onEvent`, ensuring the engine core is not compromised.
+扩展只能通过 `invoke` + `onEvent` 与主进程通信，确保引擎内核不被破坏。
 
 ---
 
-## 6. Registration Mechanism
+## 6. 注册机制
 
-**File:** `src/main/ipc.ts` — `registerAllIpcHandlers()`
+**文件**：`src/main/ipc.ts` — `registerAllIpcHandlers()`
 
 ```typescript
-// ipc.ts — unified registration entry point
+// ipc.ts — 统一注册入口
 export function registerAllIpcHandlers(): void {
   registerSettingsIpc()
   registerChatIpc()
@@ -442,11 +442,11 @@ export function registerAllIpcHandlers(): void {
   registerFileIpc()
   registerDiaryIpc()
   registerWeatherIpc()
-  // ...each IPC handler file owns its own ipcMain.handle/on
+  // ...每个 IPC handler 文件负责自己的 ipcMain.handle/on
 }
 ```
 
-Each handler file (e.g. `src/main/ipc/chat.ts`):
+每个 handler 文件（如 `src/main/ipc/chat.ts`）：
 
 ```typescript
 export function registerChatIpc(): void {
@@ -458,11 +458,11 @@ export function registerChatIpc(): void {
 
 ---
 
-## 7. Event Channel Registration
+## 7. 事件通道注册
 
 ```typescript
 // preload/index.ts
-// Each on* method maps to an ipcRenderer.on listener
+// 每个 on* 方法对应一个 ipcRenderer.on 监听
 onToken: (cb) => {
   const handler = (_: any, token: string) => cb(token)
   ipcRenderer.on('chat:token', handler)
@@ -470,37 +470,37 @@ onToken: (cb) => {
 }
 ```
 
-The returned unsubscribe function ensures listeners are cleaned up on component unmount, preventing memory leaks.
+返回的取消函数确保组件卸载时清理监听器，防止内存泄漏。
 
 ---
 
-## 8. Security Constraints
+## 8. 安全约束
 
-| Constraint | Implementation |
+| 约束 | 实现 |
 |------|------|
-| Renderer must not read `data/` directly | IPC validates paths and blocks directory traversal |
-| Extension windows must not access engine internals | Surface preload exposes only snapshot + invoke |
-| All file operations go through path whitelist | `ipc/files.ts` verifies paths are under `dataRoot` |
-| Settings validation | `settings.ts` validates each key against schema |
-| Memory delete confirmation | `memory:delete` requires a secondary confirmation parameter |
+| 渲染进程不得直接读 `data/` | IPC 做路径校验，阻止目录遍历 |
+| 扩展窗口不得访问引擎内部 | Surface preload 只暴露 snapshot + invoke |
+| 所有文件操作经过路径白名单 | `ipc/files.ts` 验证路径在 `dataRoot` 下 |
+| 设置校验 | `settings.ts` 对每个 key 做 schema 校验 |
+| 记忆删除确认 | `memory:delete` 要求二次确认参数 |
 
 ---
 
-## 9. Deprecated API
+## 9. 废弃 API
 
-| Old channel | Replacement | Removal version |
+| 旧通道 | 替换 | 移除版本 |
 |--------|------|----------|
 | `mc:*` | `ext:gamemode:invoke` | v1.1.0 |
-| `settings:getSettings` | `settings:getAll` | v1.0.0 (kept for compatibility) |
-| `settings:updateSettings` | `settings:set` | v1.0.0 (kept for compatibility) |
+| `settings:getSettings` | `settings:getAll` | v1.0.0（兼容存留） |
+| `settings:updateSettings` | `settings:set` | v1.0.0（兼容存留） |
 
 ---
 
-## 10. Related Documentation
+## 10. 相关文档
 
-| Document | Content |
+| 文档 | 内容 |
 |------|------|
-| [00-overall-system.md](./00-overall-system.md) | Process architecture and IPC overview |
-| [05-extension-system.md](./05-extension-system.md) | Extension system and Surface windows |
+| [00-overall-system.md](./00-overall-system.md) | 进程架构与 IPC 概览位置 |
+| [05-extension-system.md](./05-extension-system.md) | 扩展系统与 Surface 窗口 |
 
-*IPC API · Ackem v1.0.0 · 2026-06*
+*IPC 接口 · Ackem v1.0.0 · 2026-06*

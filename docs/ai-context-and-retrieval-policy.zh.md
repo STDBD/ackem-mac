@@ -1,5 +1,7 @@
 # AI 上下文与检索策略
 
+> **语言：** 中文 · [English](./ai-context-and-retrieval-policy.md)
+
 > **产品**：Ackem v1.0.0  
 > **核心承诺**：记忆是检索后注入的——绝不会将全部记忆倒入 LLM 上下文。
 

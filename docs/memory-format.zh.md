@@ -1,5 +1,7 @@
 # 数据目录格式
 
+> **语言：** 中文 · [English](./memory-format.md)
+
 > **产品版本**：Ackem **v1.0.0**  
 > **代码依据**：`src/main/layout.ts` · `src/main/paths.ts`  
 > **原则**：本地优先；结构化数据在 `ackem.db`；人类可读 md/json 可备份与审计。

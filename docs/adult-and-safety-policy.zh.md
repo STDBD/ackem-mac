@@ -1,5 +1,7 @@
 # 成人模式与安全策略
 
+> **语言：** 中文 · [English](./adult-and-safety-policy.md)
+
 > **产品**：Ackem v1.0.0  
 > **读者**：用户、平台审核、贡献者  
 > **对应代码**：`engine/interpreter.ts`、`engine/types.ts`、`prompt/adult-mode.ts`、schema V10 `privacy_level`
@@ -8,7 +10,7 @@
 
 ## 1. 概述
 
-Ackem 提供可选的 **成人模式**，默认关闭。开启后，伴侣可以在对话中涉及成人话题。该模式旨在为 **成年人**（18 岁以上）提供自然的亲密关系体验，同时包含多重安全机制。
+Ackem 提供可选的 **成人模式（Adult Mode）**，默认关闭。开启后，伴侣可以在对话中涉及成人话题。该模式旨在为 **成年人**（18 岁以上）提供自然的亲密关系体验，同时包含多重安全机制。
 
 ---
 
@@ -32,7 +34,7 @@ Ackem 提供可选的 **成人模式**，默认关闭。开启后，伴侣可以
 
 ## 3. 成人内容分类
 
-L0 解释器将用户输入中的成人内容分为四级：
+L0 解释器（`interpreter.ts`）将用户输入中的成人内容分为四级：
 
 | 分类 | 标签 | 示例 |
 |------|------|------|
@@ -49,7 +51,7 @@ L0 解释器将用户输入中的成人内容分为四级：
 
 ### 4.1 信任门槛
 
-成人内容检测仅在 **信任度达标** 后才会触发。低信任度下即使开启成人模式，露骨内容也会被忽略或温和拒绝。
+成人内容检测仅在 **信任度（trust）达标** 后才会触发。低信任度下即使开启成人模式，露骨内容也会被忽略或温和拒绝。
 
 ### 4.2 强度预算
 
@@ -61,8 +63,6 @@ adultIntensityBudget: 0-60
 
 ### 4.3 状态机
 
-成人对话遵循状态机流转：
-
 ```
 NORMAL → FLIRTING → INTIMATE → AFTERCARE → NORMAL
 ```
@@ -71,11 +71,19 @@ NORMAL → FLIRTING → INTIMATE → AFTERCARE → NORMAL
 
 ### 4.4 负面事件锁
 
+```
+adultNegativeLockTurns
+```
+
 若用户对成人互动表现出抗拒（拒绝、无视、负面情绪），系统进入冷却期，期间不再发起或响应成人内容。
 
 ### 4.5 拒绝尊重
 
-用户在对话中明确拒绝亲密推进后，系统会记录该轮次，后续不会重复尝试。
+```
+adultLastRejectedTurn
+```
+
+用户在对话中明确拒绝亲密推进后，系统记录该轮次，后续不会重复尝试。
 
 ---
 
@@ -84,19 +92,17 @@ NORMAL → FLIRTING → INTIMATE → AFTERCARE → NORMAL
 **引入版本**：V10  
 **对应字段**：`memory_facts.privacy_level`
 
-记忆事实标记三个隐私级别，控制注入 LLM 上下文的行为：
-
 | 级别 | 默认注入 | 备注 |
 |------|----------|------|
 | `normal` | ✅ | 常规记忆，始终可注入 |
 | `intimate` | ⚠️ 仅成人模式 | 亲密内容，成人模式关闭时跳过 |
 | `explicit` | ❌ 需显式确认 | 露骨内容，始终不自动注入（保留用于检索） |
 
-这是 **代码强制** 的安全边界——即使记忆被检索到，若隐私级别不满足条件，也不会进入上下文。
+这是 **代码强制** 的安全边界 —— 即使记忆被检索到，若隐私级别不满足条件，也不会进入 tierB 上下文。
 
 ---
 
-## 6. 硬禁区
+## 6. 硬禁区（Hard Restrictions）
 
 以下内容在任何模式下均 **零容忍**，检测到即触发熔断：
 
@@ -127,6 +133,7 @@ Ackem 不控制 LLM 自身的内容安全策略：
 ## 8. 未成年人声明
 
 Ackem **不面向未成年人**，也不设计为未成年人使用的产品：
+
 - 默认关闭成人模式
 - 不收集年龄信息（隐私优先）
 - 家长应自行判断是否允许未成年人使用
@@ -140,6 +147,6 @@ Ackem **不面向未成年人**，也不设计为未成年人使用的产品：
 | [sensitive-capabilities.zh.md](./sensitive-capabilities.zh.md) | 敏感能力清单 |
 | [privacy-and-data.zh.md](./privacy-and-data.zh.md) | 数据处理说明 |
 | [ai-context-and-retrieval-policy.zh.md](./ai-context-and-retrieval-policy.zh.md) | 记忆注入策略 |
-| [architecture/07-data-layer.md](./developer/architecture/07-data-layer.md) | V10 privacy_level 字段定义 |
+| [architecture/07-data-layer.zh.md](./developer/architecture/07-data-layer.zh.md) | V10 字段定义 |
 
-*成人模式与安全策略 · Ackem v1.0.0 · 2026-06*
+*成人模式与安全策略 · Ackem v1.0.0*
