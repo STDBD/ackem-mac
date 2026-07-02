@@ -1,7 +1,7 @@
 # 💫 Ackem
 
 ![Version](https://img.shields.io/badge/Version-1.0.0-orange?style=for-the-badge)
-![Platform](https://img.shields.io/badge/Platform-Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)
+![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS-0078D6?style=for-the-badge)
 ![License](https://img.shields.io/badge/License-AGPL--3.0-blue?style=for-the-badge)
 ![Local First](https://img.shields.io/badge/Data-Local--First-2ea043?style=for-the-badge)
 ![OpenAI Compatible](https://img.shields.io/badge/API-OpenAI--Compatible-412991?style=for-the-badge&logo=openai&logoColor=white)
@@ -10,11 +10,11 @@
 **Ackem** · **A**.C.K.E.M — **A**utonomous **C**ompanion **K**eeping **E**motional **M**emory  
 *保持情感记忆的自主伙伴*
 
-**Ackem v1.0.0** — A **local-first** AI companion for Windows. Bring your own LLM (cloud or local); Ackem handles chat, memory, emotion, relationship state, and desktop presence — **all on your hard drive**.
+**Ackem v1.0.0** — A **local-first** AI companion for Windows & macOS (Apple Silicon). Bring your own LLM (cloud or local); Ackem handles chat, memory, emotion, relationship state, and desktop presence — **all on your hard drive**.
 
 > **Source**: [GitHub](https://github.com/JasonLiu0826/Ackem) · [Gitee mirror](https://gitee.com/jason_2005/ackem)  
 > **Download**: [GitHub Releases](https://github.com/JasonLiu0826/Ackem/releases) · [Gitee Releases](https://gitee.com/jason_2005/ackem/releases)  
-> **Build**: `npm run dist:green` → `dist/release/Ackem-1.0.0-win-x64/` · [Path map](./docs/CODEBASE-PATHS.md) · [Docs languages](./docs/I18N.md)  
+> **Build**: Win `npm run dist:green` → `dist/release/Ackem-1.0.0-win-x64/` · Mac `npm run dist:mac` → `dist/Ackem-1.0.0-mac-arm64.dmg` · [Path map](./docs/CODEBASE-PATHS.md) · [Docs languages](./docs/I18N.md)  
 > **Status:** Ackem is still in **active testing**. As a solo-maintained project, test coverage is limited — you may hit unexpected behavior or rough edges. Frequent crashes and severe lag are uncommon, but imperfections still happen. [Open an Issue](https://github.com/JasonLiu0826/Ackem/issues) if something feels off.
 
 [中文文档](./README.zh.md) · [Privacy & data (EN)](./docs/privacy-and-data.md)
@@ -23,7 +23,7 @@
 
 ## At a glance
 
-Ackem is **not** a web chat box — it is a Windows desktop app that stays with you: tray, optional desktop pet, structured memory, and a companion that remembers context over time.
+Ackem is **not** a web chat box — it is a desktop app (Windows & macOS) that stays with you: tray, optional desktop pet, structured memory, and a companion that remembers context over time.
 
 | | |
 |---|---|
@@ -32,7 +32,7 @@ Ackem is **not** a web chat box — it is a Windows desktop app that stays with 
 | 💞 **Companion** | Trust, mood, relationship stage, personality presets, diary, optional proactive messages |
 | 🔒 **Local-first** | Personal data lives in `./data/` next to the exe — **not** bundled in the release zip |
 
-**You need:** Windows 10/11 64-bit · an LLM API key or local server · ~10–30 s on first launch (embedding model extracts once). **No Node.js required** for the green release.
+**You need:** Windows 10/11 64-bit · or macOS 12+ (Apple Silicon) · an LLM API key or local server · ~10–30 s on first launch (embedding model extracts once). **No Node.js required** for the release build.
 
 ---
 
@@ -94,7 +94,7 @@ Ackem is **not** a web chat box — it is a Windows desktop app that stays with 
 
 ### What is Ackem?
 
-Ackem is a **local-first** Windows desktop application: you configure your LLM endpoint, and Ackem orchestrates **conversation, memory, emotion & relationship state, and desktop companionship** while keeping data on **your machine**.
+Ackem is a **local-first** desktop application (Windows & macOS): you configure your LLM endpoint, and Ackem orchestrates **conversation, memory, emotion & relationship state, and desktop companionship** while keeping data on **your machine**.
 
 ### What you can do
 
@@ -151,7 +151,7 @@ Details: [docs/distribution-windows.md](./docs/distribution-windows.md)
 
 ### Prerequisites
 
-- Windows 10/11 · Node.js **20+** · `npm ci`
+- Windows 10/11 · or macOS 12+ (Apple Silicon) · Node.js **22 LTS** · `npm ci`
 
 ### Daily development
 
@@ -166,9 +166,10 @@ Dev `data/` is in the repo working tree, separate from green release `data/` nex
 ### Build & package
 
 ```bash
-npm run build          # Compile → out/
-npm run dist:green     # Green release → dist/release/
-npm run dist:setup     # Optional NSIS installer
+npm run build          # Compile → out/ (Windows: set NODE_OPTIONS; use build:mac on macOS)
+npm run dist:green     # Windows green release → dist/release/
+npm run dist:setup     # Optional Windows NSIS installer
+npm run dist:mac       # macOS DMG → dist/Ackem-1.0.0-mac-arm64.dmg (arm64)
 ```
 
 ### Testing
@@ -218,6 +219,7 @@ Index: [docs/developer/architecture/README.md](./docs/developer/architecture/REA
 | Perception | [perception-layer.md](./docs/perception-layer.md) | [perception-layer.zh.md](./docs/perception-layer.zh.md) |
 | Sensitive capabilities | [sensitive-capabilities.md](./docs/sensitive-capabilities.md) | [sensitive-capabilities.zh.md](./docs/sensitive-capabilities.zh.md) |
 | Windows distribution | [distribution-windows.md](./docs/distribution-windows.md) | [distribution-windows.zh.md](./docs/distribution-windows.zh.md) |
+| macOS distribution | [distribution-macos.md](./docs/distribution-macos.md) | — |
 | Indexing & scale | [indexing-and-scale.md](./docs/indexing-and-scale.md) | [indexing-and-scale.zh.md](./docs/indexing-and-scale.zh.md) |
 | Security | [SECURITY.md](./SECURITY.md) | [SECURITY.zh.md](./SECURITY.zh.md) |
 | Contributing | [CONTRIBUTING.md](./CONTRIBUTING.md) | [CONTRIBUTING.zh.md](./CONTRIBUTING.zh.md) |
