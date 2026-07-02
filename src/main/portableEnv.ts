@@ -5,6 +5,7 @@
 import { app } from 'electron'
 import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { isWin } from './platform/platform'
 
 export function isPortableWrapperLaunch(): boolean {
   return Boolean(process.env.PORTABLE_EXECUTABLE_FILE?.trim())
@@ -26,6 +27,7 @@ export function resolveUserLaunchPath(): string {
 
 /** 快捷方式 / 卸载用的 .ico（Windows 不支持 .png 作为 lnk 图标） */
 export function resolveShortcutIconPath(): string | undefined {
+  if (!isWin) return undefined
   const roots = [
     join(process.resourcesPath, 'resources', 'icon.ico'),
     join(process.resourcesPath, 'icon.ico'),

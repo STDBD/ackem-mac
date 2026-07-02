@@ -10,6 +10,7 @@ import { resolveDataRoot } from '../paths'
 import { createLogger } from '../logger'
 import { markAppQuitting, performAppShutdown } from '../shutdown'
 import { resolvePackagedAppDir } from '../portableEnv'
+import { isWin } from '../platform/platform'
 
 const log = createLogger('uninstall')
 
@@ -87,6 +88,7 @@ function spawnDetachedUninstall(batPath: string, args: string[]): void {
 }
 
 export async function launchUninstallAndQuit(opts: UninstallLaunchOptions): Promise<void> {
+  if (!isWin) return
   markAppQuitting()
   await performAppShutdown()
 

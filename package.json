@@ -21,6 +21,9 @@
     "release:asar": "node scripts/patch-release-asar.mjs",
     "patch:release": "node scripts/patch-release-asar.mjs",
     "dist:setup": "npm run build && electron-builder --config electron-builder.yml --win nsis",
+    "dev:mac": "NODE_OPTIONS=--max-old-space-size=8192 electron-vite dev",
+    "build:mac": "NODE_OPTIONS=--max-old-space-size=8192 electron-vite build",
+    "dist:mac": "npm run build:mac && electron-builder --config electron-builder.yml --mac --arm64",
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {

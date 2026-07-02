@@ -2,6 +2,7 @@ import { app } from 'electron'
 import { existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { isWin, isMac } from './platform/platform'
 
 const ORT_REL = join(
   'node_modules',
@@ -31,7 +32,21 @@ function resolveOnnxRuntimeBinDir(): string | null {
 
 /** Windows：避免加载 System32 里旧版 onnxruntime.dll（与 1.26 绑定不兼容导致闪退） */
 export function registerBundledNativeDllPaths(): void {
-  if (process.platform !== 'win32') return
+  if (!isWin) {
+    // darwin：dylib 解析的兜底（ORT 通常自解析，此处覆盖边缘场景）
+    if (isMac) {
+      try {
+        const ortBin = resolveOnnxRuntimeBinDir()
+        if (ortBin) {
+          const existing = process.env.DYLD_FALLBACK_LIBRARY_PATH
+          process.env.DYLD_FALLBACK_LIBRARY_PATH = existing ? `${ortBin}:${existing}` : ortBin
+        }
+      } catch {
+        // 非关键：best-effort，忽略
+      }
+    }
+    return
+  }
 
   const ortBin = resolveOnnxRuntimeBinDir()
   if (!ortBin) return

@@ -7,3 +7,6 @@ data
 .test-cache
 .env
 .env.*
+
+# deepwork progress (local session state)
+.slim/deepwork/

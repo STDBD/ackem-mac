@@ -3,6 +3,7 @@ import { join, relative } from 'node:path'
 import { app } from 'electron'
 import type { AppSettings } from './settings'
 import { resolvePackagedAppDir } from './portableEnv'
+import { isMac } from './platform/platform'
 
 export type DataRootDisplayPaths = {
   absolutePath: string
@@ -24,6 +25,12 @@ export function getLocalAppDataRoot(): string {
 }
 
 export function resolveDataRoot(settings: AppSettings): string {
+  // macOS: the signed .app bundle is read-only, so neither the portable
+  // (next-to-exe) nor the %LOCALAPPDATA% Windows root applies. Use the
+  // writable per-user Application Support dir for DBs, cache, and logs.
+  if (isMac) {
+    return app.getPath('userData')
+  }
   return settings.dataRootMode === 'portable' ? getPortableDataRoot() : getLocalAppDataRoot()
 }
 
@@ -38,6 +45,13 @@ function toDisplayRelative(base: string, absolutePath: string, prefix: string): 
 export function formatDataRootDisplayPaths(settings: AppSettings): DataRootDisplayPaths {
   const absolutePath = resolveDataRoot(settings)
   const mode = settings.dataRootMode
+
+  // macOS: data lives in ~/Library/Application Support/Ackem; show it as a
+  // home-relative path regardless of the (Windows-oriented) mode toggle.
+  if (isMac) {
+    const fromHome = toDisplayRelative(homedir(), absolutePath, '~/')
+    return { absolutePath, relativePath: fromHome ?? absolutePath, mode }
+  }
 
   if (mode === 'localappdata') {
     const la = process.env.LOCALAPPDATA

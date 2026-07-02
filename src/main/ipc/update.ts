@@ -5,11 +5,20 @@ import { runUpdatePreflight } from '../update/preflight'
 import { buildUpdateJob, spawnUpdaterProcess, writeUpdateJob } from '../update/spawnUpdater'
 import { loadSettings, saveSettings } from '../settings'
 import { markAppQuitting } from '../shutdown'
+import { has } from '../platform/capabilities'
 
 export function registerUpdateIpc(): void {
   ipcMain.handle('update:getAppVersion', () => app.getVersion())
 
   ipcMain.handle('update:check', async () => {
+    if (!has('updater')) {
+      return {
+        currentVersion: app.getVersion(),
+        packaged: app.isPackaged,
+        updateAvailable: false,
+        checkedAt: new Date().toISOString()
+      }
+    }
     const result = await checkForUpdates()
     saveSettings({ updateLastCheckAt: result.checkedAt })
     return result
@@ -18,6 +27,9 @@ export function registerUpdateIpc(): void {
   ipcMain.handle(
     'update:start',
     async (_e, req: UpdateStartRequest & { channel: UpdateChannel }) => {
+      if (!has('updater')) {
+        return { ok: false as const, reason: 'unsupported_platform' as const }
+      }
       const pre = runUpdatePreflight()
       if (!pre.ok) {
         return { ok: false as const, reason: pre.reason }

@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { loadSettings, saveSettings } from '../settings'
 import { createLogger } from '../logger'
+import { has } from '../platform/capabilities'
 import {
   resolvePackagedAppDir,
   resolveShortcutIconPath,
@@ -34,7 +35,7 @@ function markFirstRunComplete(dataRoot: string): void {
 
 /** 首次启动在桌面创建 Ackem.lnk（Windows） */
 export function createDesktopShortcutIfNeeded(): boolean {
-  if (process.platform !== 'win32') return false
+  if (!has('releaseShortcuts')) return false
   const desktop = app.getPath('desktop')
   const shortcutPath = join(desktop, 'Ackem.lnk')
   if (existsSync(shortcutPath)) return false

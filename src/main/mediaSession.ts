@@ -1,6 +1,7 @@
 /** W7 SMTC：读取 Windows System Media Transport Controls 状态 */
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
+import { has } from './platform/capabilities'
 
 const execFileAsync = promisify(execFile)
 
@@ -37,7 +38,7 @@ try {
 `.trim()
 
 export async function readMediaSession(): Promise<MediaSessionInfo> {
-  if (process.platform !== 'win32') return EMPTY
+  if (!has('perception')) return EMPTY
   if (process.env.ACKEM_MEDIA_TITLE) {
     return {
       title: process.env.ACKEM_MEDIA_TITLE,
@@ -96,6 +97,7 @@ export function hasMediaSessionTitle(info: MediaSessionInfo): boolean {
 }
 
 export function startMediaSessionPolling(intervalMs = 30_000): void {
+  if (!has('perception')) return
   stopMediaSessionPolling()
   const tick = () => {
     void readMediaSession().then((info) => {

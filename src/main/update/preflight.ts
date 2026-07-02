@@ -2,6 +2,19 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { spawn } from 'node:child_process'
 import { app } from 'electron'
+import { resolvePackagedAppDir } from '../portableEnv'
+
+export type UpdatePreflightResult = { ok: boolean; reason?: string; installDir: string }
+
+/** 更新前预检：解析安装目录并确认 Ackem 可定位（仅 Windows 更新流程使用） */
+export function runUpdatePreflight(): UpdatePreflightResult {
+  const installDir = resolvePackagedAppDir()
+  // 安装目录下应存在 Ackem.exe（绿色版 / NSIS 安装版一致）
+  if (!existsSync(join(installDir, 'Ackem.exe'))) {
+    return { ok: false, reason: 'install_dir_not_found', installDir }
+  }
+  return { ok: true, installDir }
+}
 
 export function resolveLauncherExePath(installDir: string): string {
   const launcher = `${installDir}\\AckemLauncher.exe`

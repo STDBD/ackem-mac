@@ -19,6 +19,7 @@ import type { LocalModelId, ModelState } from './types'
 import { MODEL_MANIFESTS, getModelManifest } from './types'
 import { app } from 'electron'
 import { createLogger } from '../../logger'
+import { isWin } from '../../platform/platform'
 
 const log = createLogger('model-manager')
 
@@ -28,18 +29,24 @@ const MODEL_STATE_FILE = '.model-state.json'
 // 路径解析
 // ═══════════════════════════════════════════
 
-/** 安装目录 resources/models（electron-builder extraResources 可能落在 resources/resources/models） */
+/** 安装目录 resources/models（electron-builder extraResources 落在 process.resourcesPath） */
 function resourcesModelsDir(): string {
   const isDev = !(app?.isPackaged ?? false)
   if (isDev) {
     return join(process.cwd(), 'resources', 'models')
   }
-  const exeDir = join(app.getPath('exe'), '..')
-  const primary = join(exeDir, 'resources', 'models')
+  // 打包后 extraResources 根目录 = process.resourcesPath
+  //   Windows 绿色版: <installDir>/resources/   macOS: App.app/Contents/Resources/
+  const resDir = process.resourcesPath
+  const primary = join(resDir, 'models')
   if (existsSync(primary)) return primary
   // extraResources: from resources → to resources → …/resources/resources/models/
-  const nested = join(exeDir, 'resources', 'resources', 'models')
+  const nested = join(resDir, 'resources', 'models')
   if (existsSync(nested)) return nested
+  // 兼容旧版 exe 相对路径（Windows 扁平布局）
+  const exeDir = join(app.getPath('exe'), '..')
+  const legacy = join(exeDir, 'resources', 'models')
+  if (existsSync(legacy)) return legacy
   return primary
 }
 
@@ -199,7 +206,7 @@ function extractSync(zipPath: string, targetDir: string, modelId: LocalModelId):
   const fileName = basename(zipPath)
 
   // Windows: 使用 PowerShell 解压
-  if (process.platform === 'win32') {
+  if (isWin) {
     execSync(
       `powershell -Command "Expand-Archive -Path '${zipPath}' -DestinationPath '${targetDir}' -Force"`,
       { timeout: 30000 }

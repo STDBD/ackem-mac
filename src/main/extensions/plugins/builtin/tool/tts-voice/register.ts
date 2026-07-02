@@ -20,8 +20,13 @@ export async function registerBuiltinTtsVoice(registry: PluginRegistry): Promise
         console.log('[voice-pipeline] env not ready, skip auto-start (Settings → 语音)')
         return { ok: true }
       }
-      const ok = await startVoiceService()
-      return ok ? { ok: true } : { ok: false, error: 'Voice service failed to start' }
+      try {
+        const ok = await startVoiceService()
+        return ok ? { ok: true } : { ok: false, error: 'Voice service failed to start' }
+      } catch (e) {
+        console.warn('[voice-pipeline] startVoiceService failed:', String(e))
+        return { ok: false, error: 'Voice service failed to start' }
+      }
     },
     onUnload: async () => {
       await stopVoiceService()
@@ -45,7 +50,13 @@ export async function ensureVoicePipelineRuntime(): Promise<void> {
     console.log('[voice-pipeline] env not ready, skip deferred start (Settings → 语音)')
     return
   }
-  const ok = await startVoiceService()
+  let ok = false
+  try {
+    ok = await startVoiceService()
+  } catch (e) {
+    console.warn('[voice-pipeline] startVoiceService failed:', String(e))
+    ok = false
+  }
   if (!ok) {
     console.warn('[voice-pipeline] deferred Python service start failed (Settings → 重启语音服务)')
   }

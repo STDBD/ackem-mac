@@ -6,12 +6,22 @@ import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createLogger } from './logger'
+import { isMac } from './platform/platform'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const log = createLogger('appIcon')
 
 const WINDOW_NAMES = ['icon.png', 'icon.ico'] as const
 const TRAY_NAMES = ['tray.png', 'tray.ico', 'icon.png', 'icon.ico'] as const
+
+// mac：nativeImage 对 .ico 扩展名路径可能加载失败（仓库 .ico 实为 PNG）；
+// darwin 仅用 .png，Windows 保持同时使用 .png 与 .ico。
+const EFFECTIVE_WINDOW_NAMES: readonly string[] = isMac
+  ? WINDOW_NAMES.filter((n) => n.endsWith('.png'))
+  : WINDOW_NAMES
+const EFFECTIVE_TRAY_NAMES: readonly string[] = isMac
+  ? TRAY_NAMES.filter((n) => n.endsWith('.png'))
+  : TRAY_NAMES
 
 function resolveIconPath(fileNames: readonly string[]): string | null {
   const roots = [
@@ -42,9 +52,9 @@ function loadFromPath(path: string | null): NativeImage {
 
 /** 窗口 / 任务栏图标 */
 export function loadWindowIcon(): NativeImage {
-  const path = resolveIconPath(WINDOW_NAMES)
+  const path = resolveIconPath(EFFECTIVE_WINDOW_NAMES)
   if (!path) {
-    log.warn('window icon not found; tried', { names: WINDOW_NAMES })
+    log.warn('window icon not found; tried', { names: EFFECTIVE_WINDOW_NAMES })
     return nativeImage.createEmpty()
   }
   log.info('window icon', { path })
@@ -53,9 +63,9 @@ export function loadWindowIcon(): NativeImage {
 
 /** 系统托盘图标（Windows 建议 16×16） */
 export function loadTrayIcon(): NativeImage {
-  const path = resolveIconPath(TRAY_NAMES)
+  const path = resolveIconPath(EFFECTIVE_TRAY_NAMES)
   if (!path) {
-    log.warn('tray icon not found; tried', { names: TRAY_NAMES })
+    log.warn('tray icon not found; tried', { names: EFFECTIVE_TRAY_NAMES })
     return nativeImage.createEmpty()
   }
   log.info('tray icon', { path })
