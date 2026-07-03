@@ -67,6 +67,8 @@ export type AppSettings = {
   apiKeyHeaderMode: ApiKeyHeaderMode
   llmExtraHeadersJson: string
   disableChatTools: boolean
+  /** 深度思考：在 OpenAI 兼容请求中添加 reasoning_effort: 'high' */
+  reasoningEffort?: boolean
   activeSessionId?: string
   /** MC Bot 上次连接的主机 */
   mcBotHost?: string

@@ -372,6 +372,7 @@ export const enResources: Record<string, string> = {
   'settings.bearer': 'Authorization: Bearer ... (OpenAI / most cloud providers)',
   'settings.xApiKey': 'x-api-key header (some gateways / proxies)',
   'settings.disableTools': 'Do not send tools in chat requests (for local models without function calling; disables append_memory tool).',
+  'settings.reasoningEffort': 'Deep thinking: add reasoning_effort: high to requests (for reasoning models like o1/o3/astron; unsupported models may error).',
   'settings.extraHeaders': 'Extra HTTP Headers (JSON object, optional)',
   'settings.extraHeadersPlaceholder': 'e.g. {"api-version":"2024-02-15-preview"}',
   'settings.modelId': 'Model ID',

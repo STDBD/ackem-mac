@@ -35,6 +35,7 @@ const defaultSettings: AppSettings = {
   apiKeyHeaderMode: 'bearer',
   llmExtraHeadersJson: '',
   disableChatTools: false,
+  reasoningEffort: false,
   openforuBaseUrl: '',
   openforuApiKey: '',
   openforuModel: '',

@@ -372,6 +372,7 @@ export const zhResources: Record<string, string> = {
   'settings.bearer': 'Authorization: Bearer …（OpenAI / 多数云厂商）',
   'settings.xApiKey': 'x-api-key 头（部分网关 / 代理）',
   'settings.disableTools': '不在聊天请求中发送 tools（适配不支持 function calling 的本地模型；关闭后无法使用「append_memory」工具写入）。',
+  'settings.reasoningEffort': '深度思考：在请求中添加 reasoning_effort: high（适用于支持推理的模型如 o1/o3/astron；不支持的模型可能报错）',
   'settings.extraHeaders': '附加 HTTP 头（JSON 对象，可选）',
   'settings.extraHeadersPlaceholder': '例如 {"api-version":"2024-02-15-preview"}',
   'settings.modelId': '模型 ID',

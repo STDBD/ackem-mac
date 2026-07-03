@@ -56,6 +56,7 @@ export function createLlmJsonClient(settings: AppSettings) {
         stream: false
       }
       if (params.max_tokens != null) body.max_tokens = params.max_tokens
+      if (settings.reasoningEffort) body.reasoning_effort = 'high'
       const res = await fetchWithRetry(url, {
         method: 'POST',
         headers: buildLlmHeaders(settings),

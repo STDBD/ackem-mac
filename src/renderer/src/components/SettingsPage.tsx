@@ -557,6 +557,17 @@ export function SettingsPage(): JSX.Element {
                 {t('settings.disableTools')}
               </span>
             </label>
+            <label className="flex cursor-pointer items-start gap-3 text-sm text-ink">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={form.reasoningEffort ?? false}
+                onChange={(e) => setForm({ ...form, reasoningEffort: e.target.checked })}
+              />
+              <span>
+                {t('settings.reasoningEffort')}
+              </span>
+            </label>
             <label className="block text-xs font-medium text-ink-muted">
               {t("settings.extraHeaders")}
               <textarea

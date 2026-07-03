@@ -242,6 +242,9 @@ export async function streamChatCompletion(
   // 主动策略 Loop：intensityMod 调制温度（0.5~1.5 乘到基线 0.6）
   const intensityMod = typeof body.intensityMod === 'number' ? body.intensityMod : 1.0
   reqBody.temperature = Math.max(0.1, Math.min(1.5, 0.6 * intensityMod))
+  if (settings.reasoningEffort) {
+    reqBody.reasoning_effort = 'high'
+  }
   if (reqBody.max_tokens == null) delete reqBody.max_tokens
   const allMsgsEarly = messages as Array<{ role: string; content: unknown }>
   const forcedWebSearchQueryRaw = (
