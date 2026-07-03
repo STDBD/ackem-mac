@@ -6,6 +6,7 @@ import type { WebContents } from 'electron'
 import { notifyUiChatBubble } from './uiWindow'
 import type { AppSettings } from './settings'
 import { appendOrOverwriteAllowed, readRelFile } from './fsops'
+import { fetchWithRetry } from './llmRetry'
 import { finalizeTurnAfterStream } from './postChatTurn'
 import { clearPendingTurn } from './turnPending'
 import {
@@ -456,7 +457,7 @@ export async function streamAnthropicMessages(
       webContents.send('chat:status', workingLabel)
     }
     const headers = buildAnthropicHeaders(settings)
-    const res = await fetch(url, {
+    const res = await fetchWithRetry(url, {
       method: 'POST',
       headers,
       body: JSON.stringify(req),
@@ -738,7 +739,7 @@ export async function streamAnthropicMessages(
           stream: false
         }
         if (system) followReq.system = system
-        const followRes = await fetch(url, {
+        const followRes = await fetchWithRetry(url, {
           method: 'POST',
           headers,
           body: JSON.stringify(followReq),
@@ -829,7 +830,7 @@ export async function anthropicMessagesJsonDetailed(params: {
   }
   if (system) body.system = system
 
-  const res = await fetch(url, {
+  const res = await fetchWithRetry(url, {
     method: 'POST',
     headers: buildAnthropicHeaders(settings),
     body: JSON.stringify(body)

@@ -2,6 +2,7 @@ import type { WebContents } from 'electron'
 import type { AppSettings } from './settings'
 import { finalizeTurnAfterStream } from './postChatTurn'
 import { buildLlmHeaders, resolveChatCompletionsUrl, shouldSendTools } from './llmEndpoint'
+import { fetchWithRetry } from './llmRetry'
 import { buildToolFollowUpRequestBody, buildToolResultsFallback } from './toolFollowUp'
 import { streamAnthropicMessages } from './anthropicMessages'
 import {
@@ -455,7 +456,7 @@ export async function streamChatCompletion(
     }
 
     const streamLlmRound = async (streamToUi: boolean): Promise<string> => {
-      const res = await fetch(url, {
+      const res = await fetchWithRetry(url, {
         method: 'POST',
         headers: buildLlmHeaders(settings),
         body: JSON.stringify(reqBody),
@@ -781,7 +782,7 @@ export async function streamChatCompletion(
           userTaskFrame,
           extraSuffix || undefined
         )
-        const followRes = await fetch(url, {
+        const followRes = await fetchWithRetry(url, {
           method: 'POST',
           headers: buildLlmHeaders(settings),
           body: JSON.stringify(followReq),
