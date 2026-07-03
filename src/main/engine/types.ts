@@ -124,24 +124,6 @@ export interface PersonalityBaseline {
   T: number; I: number; S: number; O: number; R: number
 }
 
-/** OEG：创造者叙事曝光状态（Origin Escalation Guard） */
-export type OriginExposureState =
-  | 'NORMAL'
-  | 'ENTRY'
-  | 'EXPLORE'
-  | 'DEEP'
-  | 'GUARD_COOLDOWN'
-
-export interface OriginExposure {
-  state: OriginExposureState
-  /** 连续 ackem_creator 语义轮 */
-  streak: number
-  /** Guard 后禁止 deep expansion 直至该轮次（不含） */
-  cooldownUntilTurn: number
-  /** 当前轮播周期内已注入的 Canon-M 条目 id（全量轮一遍后才允许重复） */
-  canonMDeliveredIds?: string[]
-}
-
 export interface FullState {
   version: string
   relationship: L1State
@@ -169,8 +151,6 @@ export interface FullState {
   firstMetDate?: string
   /** 时间感知层：Ackem 生日——首次启动日 (ISO "2026-06-11") */
   ackemBirthday?: string
-  /** OEG：创造者叙事曝光控制 */
-  originExposure?: OriginExposure
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -288,25 +268,6 @@ export interface TurnTrace {
     temporalHintInjected?: string | null
     /** 本轮实际注入 psycheBlock 的涌现提示（按 marker / topic 来源判定） */
     emergenceHintInjected?: boolean
-    /** OEG：创造者叙事曝光状态 */
-    originState?: OriginExposureState
-    originStreak?: number
-    /** 本轮注入的 Canon-M 条数 */
-    originCanonMEntries?: number
-    /** 本轮轮播注入的 Canon-M 条目 id */
-    originCanonMEntryId?: string | null
-    /** 本轮是否开启新一轮 Canon-M 全量轮播 */
-    originCanonMCycleReset?: boolean
-    /** 本轮注入的 Canon-M 条目 category */
-    originCanonMEntryCategory?: string | null
-    /** 语境匹配到的 Canon-M 类型（空 = 未按类型过滤） */
-    originCanonMMatchedCategories?: string[]
-    originGuardInjected?: boolean
-    originFatherRef?: 'ackem_creator' | 'user_family' | 'ambiguous' | null
-    originFatherScore?: number
-    originFatherSource?: 'calibration' | 'anchor'
-    /** CANON-M-3：本轮跳过 Tier B ingest（创造者自述） */
-    originSkipIngest?: boolean
     /** 记忆审计短路：FactStore 精选/全量读取 */
     memoryAudit?: {
       mode: string

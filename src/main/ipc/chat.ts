@@ -16,7 +16,6 @@ import {
   settleDesiresForKnowledgeTopic
 } from '../engine/desire'
 import { activeRecall, runPreLlmTurn, type PreLlmResult } from '../engine/orchestrator'
-import { shouldSkipTierBIngestForOrigin } from '../canon/originEscalationGuard'
 import { prepareTurnContext } from '../engine/prepareTurnContext'
 import type { DispatchResult } from '../extensions/protocols'
 
@@ -120,7 +119,7 @@ async function finalizeSkipTurn(args: {
     trace: args.pre.trace,
     event: args.pre.event,
     settings: args.settings,
-    skipIngest: args.skipIngest ?? shouldSkipTierBIngestForOrigin(args.pre.trace),
+    skipIngest: args.skipIngest ?? false,
   })
 }
 
@@ -783,7 +782,7 @@ export function registerChatIpc(): void {
       turnIndex: args.turnIndex ?? 0,
       userMsg: args.userText,
       newState: finalState,
-      skipIngest: shouldSkipTierBIngestForOrigin(pre.trace),
+      skipIngest: false,
       trace: pre.trace,
       event: pre.event
     })

@@ -144,29 +144,6 @@ export type OpenForUWorkspaceSwitchResult = OpenForUWorkspaceOpenResult
 export type AckemCanonInfo = {
   name: string
   birthDate: string
-  creator: {
-    name: string
-    github: string
-    role: string
-    bio: string
-  }
-}
-
-export type CreatorMemoryUiEntry = {
-  id: string
-  category: string
-  title: string
-  content: string
-  narrativeAt: string
-}
-
-export type CreatorMemoryUiBundle = {
-  version: string
-  documentVersion: string
-  entryCount: number
-  decayPolicy: string
-  seededAt: string | null
-  entries: CreatorMemoryUiEntry[]
 }
 
 export type AckemApi = {
@@ -186,7 +163,6 @@ export type AckemApi = {
   getUpdateChannelPreference: () => Promise<UpdateChannel>
   setUpdateChannelPreference: (channel: UpdateChannel) => Promise<UpdateChannel>
   getCanon: () => Promise<AckemCanonInfo>
-  getCreatorMemory: () => Promise<CreatorMemoryUiBundle>
   setSettings: (patch: Partial<AppSettings>) => Promise<AppSettings>
   getDataRoot: () => Promise<{ path: string; relativePath: string; mode: string; databasePath: string }>
   ensureLayout: () => Promise<{ path: string }>

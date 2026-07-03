@@ -1043,10 +1043,6 @@ export function SettingsPage(): JSX.Element {
                     <dt>{t("settings.canonBirthDate")}</dt>
                     <dd>{canonInfo.birthDate}</dd>
                   </div>
-                  <div className="settings-meta-row">
-                    <dt>{t("settings.canonCreator")}</dt>
-                    <dd>{t("settings.canonCreatorValue")}</dd>
-                  </div>
                 </>
               )}
               <div className="settings-meta-row">

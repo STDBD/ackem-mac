@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { normalizeConfidence } from '../../../shared/confidence'
 import { isValidSubcategory } from '../taxonomy'
-import { vetCreatorContradictingFact } from '../../canon/canonCreatorIngestGuard'
 import type { LlmClient } from '../../engine/types'
 import {
   DOCUMENT_IMPORT_MAX_ANCHORS_PER_CHUNK,
@@ -118,8 +117,7 @@ export function parseDocumentImportJson(raw: string): ParsedImportChunk | null {
         .filter((f) => {
           if (!isValidSubcategory(f.subcategory)) f.subcategory = 'NOW'
           if (f.subcategory === 'OUR_BOND') return false
-          const vet = vetCreatorContradictingFact(f)
-          return !vet.reject
+          return true
         })
 
       const episodes = episodesRaw

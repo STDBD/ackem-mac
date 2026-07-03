@@ -11,7 +11,6 @@ import { buildUserInfoBlock } from '../memory/userDossier'
 import { workingMemory } from '../memory/workingMemory'
 import { setPendingTurn } from '../turnPending'
 import { registerAndFinalizeSkipTurn } from '../postChatTurn'
-import { shouldSkipTierBIngestForOrigin } from '../canon/originEscalationGuard'
 import { defaultPersonalitySlice } from '../personalityPresets'
 import { loadSettings } from '../settings'
 import { resolveDataRoot } from '../paths'
@@ -134,7 +133,7 @@ export async function runCompanionTurn(input: CompanionTurnInput): Promise<Compa
         trace: pre.trace,
         event: pre.event,
         settings,
-        skipIngest: shouldSkipTierBIngestForOrigin(pre.trace)
+        skipIngest: false
       })
     }
     return {
@@ -159,7 +158,7 @@ export async function runCompanionTurn(input: CompanionTurnInput): Promise<Compa
     turnIndex,
     userMsg: userText,
     newState: pre.newState,
-    skipIngest: shouldSkipTierBIngestForOrigin(pre.trace),
+    skipIngest: false,
     trace: pre.trace,
     event: pre.event
   })

@@ -301,18 +301,3 @@ export const FACT_DEDUP_WEIGHT_BOOST = 0.5
 export const SELF_EDIT_REINFORCE_WEIGHT_BOOST = 0.3
 export const SELF_EDIT_LOG_MAX = 200
 export const SELF_EDIT_LOG_KEEP = 100
-
-// ═══════════════════════════════════════════════════════════
-// OEG — Origin Escalation Guard（创造者叙事深度控制）
-// ═══════════════════════════════════════════════════════════
-export const ORIGIN_STREAK_EXPLORE = 2
-export const ORIGIN_STREAK_DEEP = 4
-export const ORIGIN_STREAK_GUARD = 5
-export const ORIGIN_COOLDOWN_TURNS = 8
-/** Canon-M 每轮只注入 1 条事实片段（轮播不重复，见 pickRotatingCreatorMemoryEntries） */
-export const ORIGIN_ENTRY_MAX_ENTRIES = 1
-export const ORIGIN_EXPLORE_MAX_ENTRIES = 1
-export const ORIGIN_DEEP_MAX_ENTRIES = 1
-export const ORIGIN_ENTRY_MAX_CHARS = 400
-export const ORIGIN_EXPLORE_MAX_CHARS = 800
-export const ORIGIN_DEEP_MAX_CHARS = 1200

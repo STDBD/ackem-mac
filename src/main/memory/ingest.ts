@@ -22,7 +22,6 @@ import type { AssociationIndex } from './associationIndex'
 import { cosineSimilarity } from './factEmbeddingCache'
 import { seedAssociationsForNewFacts } from './associationColdStart'
 import { extractTriggers } from './triggerExtractor'
-import { vetCreatorContradictingFact } from '../canon/canonCreatorIngestGuard'
 import { filterExtractedUserFacts } from './userFactGuard'
 import { createLogger } from '../logger'
 import type { AdultMemoryPrivacyLevel } from '../prompt/adult-mode'
@@ -122,16 +121,6 @@ export class MemoryIngestPipeline {
     const pendingContradictions: Array<{ newFact: MemoryFact; existing: MemoryFact }> = []
     const newFactsThisTurn: MemoryFact[] = []
     for (const f of ex.facts) {
-      const canonVet = vetCreatorContradictingFact(f)
-      if (canonVet.reject) {
-        log.info('CANON-M-5 reject Tier B fact', {
-          reason: canonVet.reason,
-          subject: f.subject,
-          summary: f.summary.slice(0, 80),
-        })
-        continue
-      }
-
       // 自动生成触发词（LLM 只输出关键词，Intl.Segmenter 补齐缺失的）
       const autoTriggers = extractTriggers(f.subject, f.summary)
       const mergedTriggers = [...new Set([...(f.triggers ?? []), ...autoTriggers])]

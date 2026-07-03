@@ -9,7 +9,6 @@ import { EpisodicStore, defaultEpisodesPath } from '../episodicStore'
 import { KnowledgeGraph, defaultKgPath } from '../knowledgeGraph'
 import { extractTriggers } from '../triggerExtractor'
 import { extractTriples } from '../tripleExtractor'
-import { vetCreatorContradictingFact } from '../../canon/canonCreatorIngestGuard'
 import { shouldWriteTemporalAnchor, detectAnchorType, writeTemporalAnchor } from '../temporalAnchorPolicy'
 import { finalizeNewFacts } from '../finalizeNewFacts'
 import { reseedAssociationGraphForDataRoot } from '../associationColdStart'
@@ -98,8 +97,6 @@ export async function commitImportJob(args: {
 
   for (const draft of job.facts) {
     if (!draft.enabled || disabled.has(draft.draftId)) continue
-    const vet = vetCreatorContradictingFact(draft)
-    if (vet.reject) continue
 
     const triggers = [
       ...new Set([...(draft.triggers ?? []), ...extractTriggers(draft.subject, draft.summary)]),

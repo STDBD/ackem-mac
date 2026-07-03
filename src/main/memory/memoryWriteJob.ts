@@ -6,7 +6,6 @@ import { FactStore, defaultFactsPath } from './factStore'
 import { EpisodicStore, defaultEpisodesPath } from './episodicStore'
 import { KnowledgeGraph, defaultKgPath } from './knowledgeGraph'
 import { MemoryIngestPipeline } from './ingest'
-import { resolveTierBIngestSkip } from './tierBIngestPolicy'
 import { finalizeNewFacts, notifyMemoryUpdated } from './finalizeNewFacts'
 import { getAssociationIndex } from '../engineCache'
 import { createLogger } from '../logger'
@@ -37,17 +36,7 @@ function queueForSession(sessionId: string): { chain: Promise<void> } {
 async function runMemoryWriteJob(payload: MemoryWriteJobPayload): Promise<void> {
   const { pending: p, dataRoot, assistantText, settings, syncFactIds = [] } = payload
 
-  if (resolveTierBIngestSkip({
-    skipIngest: p.skipIngest,
-    userMsg: p.userMsg,
-    trace: p.trace,
-  })) {
-    if (p.trace?.l3?.originSkipIngest) {
-      log.info('CANON-M-3 skip Tier B ingest', {
-        turn: p.turnIndex,
-        originState: p.trace.l3.originState,
-      })
-    }
+  if (p.skipIngest) {
     notifyMemoryUpdated({
       sessionId: p.sessionId,
       turnIndex: p.turnIndex,

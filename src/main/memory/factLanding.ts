@@ -4,7 +4,6 @@ import type { KnowledgeGraph } from './knowledgeGraph'
 import { extractTriples } from './tripleExtractor'
 import { extractTriggers } from './triggerExtractor'
 import { detectAnchorType, shouldWriteTemporalAnchor, writeTemporalAnchor } from './temporalAnchorPolicy'
-import { vetCreatorContradictingFact } from '../canon/canonCreatorIngestGuard'
 import type { EmotionState, L1State, MemoryFact } from '../engine/types'
 import type { ExtractedFactRow } from './lightExtract/types'
 import type { AdultMemoryPrivacyLevel } from '../prompt/adult-mode'
@@ -36,9 +35,6 @@ export function writeFactRows(args: {
   const newFactIds: string[] = []
 
   for (const f of rows) {
-    const canonVet = vetCreatorContradictingFact(f)
-    if (canonVet.reject) continue
-
     const autoTriggers = extractTriggers(f.subject, f.summary)
     const mergedTriggers = [...new Set([...(f.triggers ?? []), ...autoTriggers])]
 

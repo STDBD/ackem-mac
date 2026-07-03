@@ -133,22 +133,8 @@ contextBridge.exposeInMainWorld('ackem', {
     channel: import('../shared/updateTypes').UpdateChannel
   ): Promise<import('../shared/updateTypes').UpdateChannel> =>
     ipcRenderer.invoke('update:setChannelPreference', channel),
-  getCanon: (): Promise<{ name: string; birthDate: string; creator: { name: string; github: string; role: string; bio: string } }> =>
+  getCanon: (): Promise<{ name: string; birthDate: string }> =>
     ipcRenderer.invoke('canon:get'),
-  getCreatorMemory: (): Promise<{
-    version: string
-    documentVersion: string
-    entryCount: number
-    decayPolicy: string
-    seededAt: string | null
-    entries: Array<{
-      id: string
-      category: string
-      title: string
-      content: string
-      narrativeAt: string
-    }>
-  }> => ipcRenderer.invoke('canon:creator-memory:get'),
   setSettings: (patch: Partial<AppSettings>): Promise<AppSettings> =>
     ipcRenderer.invoke('settings:set', patch),
   getDataRoot: (): Promise<{ path: string; relativePath: string; mode: string; databasePath: string }> =>

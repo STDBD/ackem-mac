@@ -63,7 +63,6 @@ export function defaultFullState(personality: FullState['personality']): FullSta
     adultConsecutiveVulnerableTurns: 0,
     adultLastRejectedTurn: -1,
     emergencePersistence: { active: null, history: [] },
-    originExposure: { state: 'NORMAL', streak: 0, cooldownUntilTurn: 0 },
   }
 }
 

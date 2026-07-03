@@ -9,7 +9,6 @@ import { enqueueMemoryWrite } from './memory/memoryWriteJob'
 import { writeSyncLightFacts } from './memory/syncLightWrite'
 import { writeCompanionReplyLog } from './memory/companionReplyLog'
 import { finalizeNewFacts } from './memory/finalizeNewFacts'
-import { resolveTierBIngestSkip } from './memory/tierBIngestPolicy'
 import { getAssociationIndex } from './engineCache'
 import { createLogger } from './logger'
 import { resolveAdultMemoryPrivacyLevel } from './prompt/adult-mode'
@@ -128,12 +127,7 @@ async function finalizeTurnSyncPhase(args: {
     log.info('explicit correction', { userMsg: p.userMsg.slice(0, 50), weakened: lastActivatedAssociationIds.length })
   }
 
-  const tierBSkip = resolveTierBIngestSkip({
-    skipIngest: p.skipIngest,
-    userMsg: p.userMsg,
-    trace: p.trace,
-  })
-  if (tierBSkip) {
+  if (p.skipIngest) {
     return []
   }
 

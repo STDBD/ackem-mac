@@ -75,29 +75,12 @@ import {
   CANON_MANDATORY_TEMPORAL_MARKER,
   shouldInjectStrangerGuard,
 } from '../canon/ackemCanon'
-import {
-  buildCreatorMemoryBlock,
-  loadCreatorMemoryStore,
-  pickRotatingCreatorMemoryEntries,
-  resolveFatherReference,
-  type FatherReferenceSignal,
-} from '../canon/creatorMemory'
-import {
-  advanceOriginExposure,
-  countCanonMEntryLines,
-  normalizeOriginExposure,
-  resolveOriginInjectionPolicy,
-  shouldSkipTierBIngestForOrigin,
-  shouldSuppressOriginProactiveTopics,
-} from '../canon/originEscalationGuard'
 import { computeReunionShock, applyReunionShock } from './reunion'
 import { offlineThoughtsToHint } from './offline-thought'
 import { getCachedEmbeddingProvider, scheduleEmbeddingRebuild } from '../engineCache'
 import {
   getCachedAnchorVectors,
   getCachedProfileAnchors,
-  getCachedCreatorEntryEmbeddings,
-  getCachedFatherReferenceEmbeddings,
   getCachedTemporalEmbeddings,
 } from '../embedding/preLlmWarmup'
 import {
@@ -1062,14 +1045,6 @@ export async function runPreLlmTurn(args: {
   // FIX-006：话题仲裁 — 特殊日 / 涌现 / 欲望 / 主动回忆 四选一注入，避免同轮矛盾提示
   let selectedTopicFinal: TopicCandidate | null = null
   let topicInjectionApplied = ''
-  let fatherRefSignal: FatherReferenceSignal | null = null
-  let nextOriginExposure = normalizeOriginExposure(prev.originExposure)
-  let originCanonMEntries = 0
-  let originCanonMEntryId: string | null = null
-  let originCanonMCycleReset = false
-  let originCanonMEntryCategory: string | null = null
-  let originCanonMMatchedCategories: string[] = []
-  let originGuardInjected = false
   if (!lite) {
     const stageOrder: Record<string, number> = { STRANGER: 0, FAMILIAR: 1, INTIMATE: 2 }
     const recallCandidate =
@@ -1087,16 +1062,6 @@ export async function runPreLlmTurn(args: {
       consecutiveVulnerableTurns: getConsecutiveVulnerableTurns(),
       recentEventTypes: getRecentEventTypes(),
     })
-
-    if (queryEmbed?.length && dataRoot && embeddingProvider?.ready()) {
-      try {
-        const fatherAnchors = await getCachedFatherReferenceEmbeddings(embeddingProvider)
-        fatherRefSignal = resolveFatherReference(queryEmbed, fatherAnchors)
-      } catch { /* OEG 语义失败不影响主流程 */ }
-    }
-    const originAdvance = advanceOriginExposure(prev.originExposure, fatherRefSignal, turnIndex)
-    nextOriginExposure = originAdvance
-    const suppressOriginProactive = shouldSuppressOriginProactiveTopics(nextOriginExposure)
 
     let emergenceForTopic = activeEmergence
     if (
@@ -1234,16 +1199,6 @@ export async function runPreLlmTurn(args: {
       })
     }
 
-    if (
-      suppressOriginProactive &&
-      topicInjection &&
-      selectedTopicFinal?.source === 'special_date' &&
-      !shouldApplyResponsiveTemporalInjection(injectionSlots.temporal)
-    ) {
-      topicInjection = ''
-      selectedTopicFinal = null
-    }
-
     if (topicInjection) {
       psycheBlock += topicInjection
       topicInjectionApplied = topicInjection
@@ -1257,46 +1212,6 @@ export async function runPreLlmTurn(args: {
       psycheBlock += `\n\n【时间语义】用户消息带有「${msgTemporalSemanticSignal.label}」类时间指向，优先回忆该时段相关的共同经历；找不到合适记忆时诚实说记不清，不要编造。`
     }
 
-    // Canon-M + OEG：语义判定在聊 Ackem 创造者时，按深度限制注入父亲记忆
-    if (queryEmbed?.length && dataRoot && embeddingProvider?.ready()) {
-      try {
-        const originPolicy = resolveOriginInjectionPolicy(
-          nextOriginExposure,
-          fatherRefSignal,
-          originAdvance.guardTriggered
-        )
-        if (originPolicy.guardPsycheBlock) {
-          psycheBlock += `\n\n${originPolicy.guardPsycheBlock}`
-          originGuardInjected = true
-        }
-        if (originPolicy.allowCanonM) {
-          const creatorStore = loadCreatorMemoryStore(dataRoot)
-          const entryEmb = await getCachedCreatorEntryEmbeddings(embeddingProvider, dataRoot)
-          const rotation = pickRotatingCreatorMemoryEntries(
-            creatorStore,
-            queryEmbed,
-            entryEmb,
-            nextOriginExposure.canonMDeliveredIds ?? []
-          )
-          const creatorBlock = buildCreatorMemoryBlock(creatorStore, preset?.gender ?? 'female', {
-            entries: rotation.entries,
-            maxChars: originPolicy.maxChars,
-          })
-          if (creatorBlock) {
-            psycheBlock += creatorBlock
-            originCanonMEntries = countCanonMEntryLines(creatorBlock)
-            originCanonMEntryId = rotation.entries[0]?.id ?? null
-            originCanonMCycleReset = rotation.cycleReset
-            originCanonMEntryCategory = rotation.pickedCategory ?? null
-            originCanonMMatchedCategories = rotation.matchedCategories
-            nextOriginExposure = {
-              ...nextOriginExposure,
-              canonMDeliveredIds: rotation.nextDeliveredIds,
-            }
-          }
-        }
-      } catch { /* 创造者记忆注入失败不影响主流程 */ }
-    }
   }
 
   // P2-4: 注入未投递的离线思绪（重启后首轮）
@@ -1319,7 +1234,7 @@ export async function runPreLlmTurn(args: {
     if (recentEmbedHistory.length > MAX_EMBED_HISTORY) recentEmbedHistory.shift()
   }
 
-  if (recentUserMessages.length >= 3 && fatherRefSignal?.kind !== 'ackem_creator') {
+  if (recentUserMessages.length >= 3) {
     const prevTrust = prev.relationship.trust
     userProfile = updateUserProfile(
       [...recentUserMessages, msg],
@@ -1379,7 +1294,6 @@ export async function runPreLlmTurn(args: {
 
   // 情绪涌现持久化
   newState.emergencePersistence = emergencePersist
-  newState.originExposure = nextOriginExposure
 
   // P2-4: 标记已投递的离线思绪
   if (undeliveredThoughts.length > 0) {
@@ -1452,20 +1366,6 @@ export async function runPreLlmTurn(args: {
       emergenceHintInjected:
         psycheBlock.includes(EMERGENCE_HINT_MARKER) ||
         selectedTopicFinal?.source === 'emergence',
-      originState: nextOriginExposure.state,
-      originStreak: nextOriginExposure.streak,
-      originCanonMEntries,
-      originCanonMEntryId,
-      originCanonMCycleReset,
-      originCanonMEntryCategory,
-      originCanonMMatchedCategories,
-      originGuardInjected,
-      originFatherRef: fatherRefSignal?.kind ?? null,
-      originFatherScore: fatherRefSignal?.score,
-      originFatherSource: fatherRefSignal?.source,
-      originSkipIngest: shouldSkipTierBIngestForOrigin({
-        l3: { originFatherRef: fatherRefSignal?.kind ?? null },
-      }),
     },
     l4: { wrote: false },
     l5: { toolCalls: [] },

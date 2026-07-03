@@ -40,7 +40,6 @@ import {
 } from '../embedding/embeddingReadiness'
 import { createLogger } from '../logger'
 import { ACKEM_CANON } from '../canon/ackemCanon'
-import { loadCreatorMemoryStore } from '../canon/creatorMemory'
 import { embeddingSettingsChanged, onlyDesktopAgentSettingsChanged } from '../../shared/settingsChange'
 
 const log = createLogger('ipc-data')
@@ -81,26 +80,7 @@ export function registerDataIpc(): void {
   ipcMain.handle('canon:get', () => ({
     name: ACKEM_CANON.name,
     birthDate: ACKEM_CANON.birthDate,
-    creator: { ...ACKEM_CANON.creator },
   }))
-  ipcMain.handle('canon:creator-memory:get', () => {
-    const root = resolveDataRoot(loadSettings())
-    const store = loadCreatorMemoryStore(root)
-    return {
-      version: store.version,
-      documentVersion: store.documentVersion ?? store.version,
-      entryCount: store.entries.length,
-      decayPolicy: store.decayPolicy,
-      seededAt: store.seededAt ?? null,
-      entries: store.entries.map((e) => ({
-        id: e.id,
-        category: e.category,
-        title: e.title,
-        content: e.content,
-        narrativeAt: e.narrativeAt,
-      })),
-    }
-  })
   ipcMain.handle('settings:set', (_e, patch: Parameters<typeof saveSettings>[0]) => {
     const prev = loadSettings()
     const s = saveSettings(patch)
