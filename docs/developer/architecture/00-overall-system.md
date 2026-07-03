@@ -167,7 +167,7 @@ Step 4: Context assembly
 context.ts → assembleChatContext()
   Merge all blocks into system prompt + messages array:
     Tier A:   Companion snapshot (self.md + state.md)
-    Canon:    Ackem persona, creator memory, stranger guard
+    Canon:    Ackem persona, stranger guard
     psyche:   Emotion/relationship psyche block [Heart system output]
     Tier B:   Retrieved memory snippets [Brain system output]
     Extension injection: extension contextInjection [Extension system output]
@@ -287,9 +287,7 @@ src/main/
 │   └── policy/               #   Proactive/intensity policy
 │
 ├── canon/                    # Ackem core persona
-│   ├── ackemCanon.ts         #   Immutable persona
-│   ├── creatorMemory.ts      #   Creator memory (non-decaying)
-│   └── creatorMemorySeed.ts  #   Origin seed
+│   └── ackemCanon.ts         #   Immutable persona
 │
 ├── companion/                # Companion mode
 │   ├── proactiveScheduler.ts #   Proactive message scheduling

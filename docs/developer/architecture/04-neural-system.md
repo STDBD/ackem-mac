@@ -84,8 +84,6 @@ prepareTurnContext()
     │     passed to emotion alignment scoring (scoring.ts)
     │     passed to temporal semantic detection (temporalSignalExtractor.ts)
     │     passed to extension route matching (routeTable.ts)
-    │     passed to father-reference resolution (creatorMemory.ts)
-    │     passed to creator memory entry matching (orchestrator.ts)
     │
     ├── computeConversationEmbed(recentMsgs)  → conversationEmbed
     │     passed to active recall selection (activeRecall.ts)
@@ -121,7 +119,7 @@ The Neural System is split into two layers to avoid import cycles:
 | `routeTable.ts` | 12 built-in extension route tables, build/match/rule checks | 247 |
 | `scoring.ts` | Emotion alignment, semantic rerank, conversation vectors, profile inference, diary center | 205 |
 | `embeddingReadiness.ts` | Readiness state machine (idle→loading→syncing→warming→ready) | 80 |
-| `preLlmWarmup.ts` | Module-level cache (anchors/temporal/father/creator memory) | 158 |
+| `preLlmWarmup.ts` | Module-level cache (anchors/temporal) | 158 |
 | `types.ts` | Application-layer types, confidence thresholds | 150 |
 
 ---
@@ -694,10 +692,8 @@ All precomputed embedding results are **computed once, cached at module level, i
 let cachedAnchorVectors: AnchorVectors | null
 let cachedProfileAnchors: ProfileAnchors | null
 let cachedCreateToolAnchor: number[] | null
-let cachedTemporalEmbeddings: Map<string, number[]> | null
-let cachedFatherReferenceEmbeddings: Map<string, {cluster, vector}> | null
-let cachedCreatorEntryEmbeddings: Map<string, number[]> | null
-let cachedProviderSig: string  // provider name, for switch detection
+  let cachedTemporalEmbeddings: Map<string, number[]> | null
+  let cachedProviderSig: string  // provider name, for switch detection
 ```
 
 ### 11.2 Warmup startup
@@ -708,8 +704,6 @@ warmupPreLlmEmbeddings(provider, dataRoot?):
   Promise.all([
     getCachedAnchorVectors(provider),           // 10 semantic centers
     getCachedTemporalEmbeddings(provider),       // 37 temporal anchors
-    getCachedFatherReferenceEmbeddings(provider),// father-reference resolution
-    dataRoot ? getCachedCreatorEntryEmbeddings(provider, dataRoot) : undefined
   ])
 ```
 
@@ -762,7 +756,7 @@ async function warmupEmbeddingAtStartup(dataRoot, index):
   await ensureFactEmbeddingsReady(entry)  // batch embed all active facts
 
   setPhase('warming_prellm', { factEmbeddingsReady: true })
-  await warmupPreLlmEmbeddings(provider, dataRoot)  // anchors+temporal+father+creator
+  await warmupPreLlmEmbeddings(provider, dataRoot)  // anchors+temporal
 
   setPhase('ready')  // ← all ready
 ```
@@ -810,7 +804,7 @@ async function prepareTurnContext({ msg, state, factStore, retriever, ... }):
 
 ```
 Per user message:
-  1× embed(msg)                            → queryEmbed (L0/L4/routing/mirror/father reference)
+  1× embed(msg)                            → queryEmbed (L0/L4/routing/mirror)
   1× computeConversationEmbed(recentMsgs)  → conversationEmbed (active recall)
   37× cosineSimilarity (temporal signal detection) → temporalSemanticSignal (temporal retrieval)
 
@@ -821,8 +815,6 @@ At startup (one-time):
   8× embed (create-tool anchor words)      → tool intent detection
   37× embed (temporal anchor sentences)    → temporal semantic cache
   5× embed (diary meaningful center)       → diary material center
-  several embed (father-reference anchors) → creator memory resolution
-  several embed (creator memory entries)   → creator semantic matching
   N_ACTIVE_FACTS× embed (all facts)        → dense vector cache (potentially hundreds, async)
 ```
 
@@ -897,16 +889,6 @@ dispatchRouter.ts:
   if embedding route table ready:
     matchAgainstRouteTable(queryEmbed, routeIndex)
     medium-confidence result + rules pass → auto_invoke extension
-```
-
-### 14.8 Canon (creator memory)
-
-```
-orchestrator.ts (Pre-LLM):
-  father-reference resolution: resolveFatherReference(queryEmbed, fatherAnchors)
-    → determine whether "他" refers to the creator or the user's real father
-  creator entry matching: queryEmbed vs cachedCreatorEntryEmbeddings
-    → select semantically relevant creator memories to inject
 ```
 
 ---

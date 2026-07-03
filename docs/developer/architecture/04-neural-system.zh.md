@@ -78,8 +78,6 @@ prepareTurnContext()
     │     传给 情绪对齐评分 (scoring.ts)
     │     传给 时间语义检测 (temporalSignalExtractor.ts)
     │     传给 扩展路由匹配 (routeTable.ts)
-    │     传给 父亲指称解析 (creatorMemory.ts)
-    │     传给 创造者记忆条目匹配 (orchestrator.ts)
     │
     ├── computeConversationEmbed(recentMsgs)  → conversationEmbed
     │     传给 主动回忆选择 (activeRecall.ts)
@@ -115,7 +113,7 @@ prepareTurnContext()
 | `routeTable.ts` | 12 内置扩展路由表、构建/匹配/规则检查 | 247 |
 | `scoring.ts` | 情绪对齐、语义重排、对话向量、画像推断、日记中心 | 205 |
 | `embeddingReadiness.ts` | 就绪状态机 (idle→loading→syncing→warming→ready) | 80 |
-| `preLlmWarmup.ts` | 模块级缓存(锚定/时间/父亲/创造者记忆) | 158 |
+| `preLlmWarmup.ts` | 模块级缓存(锚定/时间) | 158 |
 | `types.ts` | 应用层类型、置信阈值 | 150 |
 
 ---
@@ -688,10 +686,8 @@ detectTemporalSignal(msgEmbedding, sentenceEmbeddings, threshold=0.6):
 let cachedAnchorVectors: AnchorVectors | null
 let cachedProfileAnchors: ProfileAnchors | null
 let cachedCreateToolAnchor: number[] | null
-let cachedTemporalEmbeddings: Map<string, number[]> | null
-let cachedFatherReferenceEmbeddings: Map<string, {cluster, vector}> | null
-let cachedCreatorEntryEmbeddings: Map<string, number[]> | null
-let cachedProviderSig: string  // provider name, 用于检测切换
+  let cachedTemporalEmbeddings: Map<string, number[]> | null
+  let cachedProviderSig: string  // provider name, 用于检测切换
 ```
 
 ### 11.2 预热启动
@@ -702,8 +698,6 @@ warmupPreLlmEmbeddings(provider, dataRoot?):
   Promise.all([
     getCachedAnchorVectors(provider),           // 10 类语义中心
     getCachedTemporalEmbeddings(provider),       // 37 条时间锚定
-    getCachedFatherReferenceEmbeddings(provider),// 父亲指称解析
-    dataRoot ? getCachedCreatorEntryEmbeddings(provider, dataRoot) : undefined
   ])
 ```
 
@@ -756,7 +750,7 @@ async function warmupEmbeddingAtStartup(dataRoot, index):
   await ensureFactEmbeddingsReady(entry)  // 批量 embed 全部活跃事实
 
   setPhase('warming_prellm', { factEmbeddingsReady: true })
-  await warmupPreLlmEmbeddings(provider, dataRoot)  // 锚定+时间+父亲+创造者
+  await warmupPreLlmEmbeddings(provider, dataRoot)  // 锚定+时间
 
   setPhase('ready')  // ← 全部就绪
 ```
@@ -804,7 +798,7 @@ async function prepareTurnContext({ msg, state, factStore, retriever, ... }):
 
 ```
 每轮用户消息:
-  1 次 embed(msg)                            → queryEmbed (L0/L4/路由/镜像/父亲指称)
+  1 次 embed(msg)                            → queryEmbed (L0/L4/路由/镜像)
   1 次 computeConversationEmbed(recentMsgs)  → conversationEmbed (主动回忆)
   37 次 cosineSimilarity (时间信号检测)       → temporalSemanticSignal (时间检索)
 
@@ -815,8 +809,6 @@ async function prepareTurnContext({ msg, state, factStore, retriever, ... }):
   8 次 embed (创建工具锚定词)         → 工具意图检测
   37 次 embed (时间锚定句)            → 时间语义缓存
   5 次 embed (日记有意义中心)         → 日记素材中心
-  若干 embed (父亲指称锚定)           → 创造者记忆解析
-  若干 embed (创造者记忆条目)         → 创造者语义匹配
   N_ACTIVE_FACTS 次 embed (全部事实)  → 稠密向量缓存 (潜在几百次, 异步)
 ```
 
@@ -891,16 +883,6 @@ dispatchRouter.ts:
   if embedding 路由表就绪:
     matchAgainstRouteTable(queryEmbed, routeIndex)
     中置信结果 + 规则检查通过 → auto_invoke 扩展
-```
-
-### 14.8 Canon (创造者记忆)
-
-```
-orchestrator.ts (Pre-LLM):
-  父亲指称解析: resolveFatherReference(queryEmbed, fatherAnchors)
-    → 判断用户说的"他"是指创造者还是现实中的父亲
-  创造者条目匹配: queryEmbed vs cachedCreatorEntryEmbeddings
-    → 选取语义相关的创造者记忆注入
 ```
 
 ---

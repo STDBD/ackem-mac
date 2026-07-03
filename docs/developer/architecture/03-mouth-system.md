@@ -90,8 +90,8 @@ Ackem prompts are physically spread across multiple files but logically stacked 
 │     Assembly: buildEmotionSection() + buildFusionSection() │
 ├────────────────────────────────────────────────────────────┤
 │  ③ Baseline — safety rules + Canon + adult mode safety gate│
-│     «These facts cannot be rewritten: Ackem was created by   │
-│      Jason Liu…»                                           │
+│     «These facts cannot be rewritten: name Ackem, birth date│
+│      Canon constants…»                                     │
 │     Source: main-chat.ts + adult-mode.ts                   │
 ├────────────────────────────────────────────────────────────┤
 │  ④ Boundaries — pacing + silence tendency + barrier        │

@@ -738,7 +738,6 @@ interface FullState {
   adultState: 'NORMAL' | 'ACTIVE' | 'NEGATIVE_LOCK'
   adultIntensityBudget: number
   emergencePersistence: { active: EmergenceState | null; history: EmergenceState[] }
-  originExposure: OriginExposure
 }
 ```
 

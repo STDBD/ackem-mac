@@ -25,7 +25,7 @@ This keeps prompt costs predictable, protects privacy, and avoids overwhelming t
 |------|---------|------------------|--------|
 | **Tier A** | Companion snapshot (self identity, current emotional state, relationship summary) | Yes | `companion/self.md`, orchestrator state |
 | **Tier B** | Retrieved facts, episodic memories, knowledge graph associations | No — selected by relevance | `retriever.ts`, `factStore`, `vectorStore` |
-| **Canon** | Creator identity, Ackem origin, unalterable personality seeds | Yes | `canon/ackemCanon.ts`, `creatorMemorySeed.ts` |
+| **Canon** | Ackem identity (name, birth date), unalterable personality seeds | Yes | `canon/ackemCanon.ts` |
 
 Tier A and Canon form the stable part of every system prompt. Tier B is dynamically assembled per turn.
 
@@ -58,7 +58,7 @@ User message
 │ context.ts                                        │
 │                                                    │
 │  · Tier A (companion snapshot)                    │
-│  · Canon (creator & origin)                       │
+│  · Canon (Ackem identity)                         │
 │  · Tier B (retrieved memory)                      │
 │  · psycheBlock (emotion/relationship state)       │
 │  · Extension context injections                   │
@@ -121,7 +121,7 @@ After LLM response
 
 ### Guardrails
 
-- **Canon guard**: Facts contradicting the Ackem creator canon are rejected (`canonCreatorIngestGuard.ts`)
+- **Canon guard**: Facts contradicting the Ackem canon are rejected (`canonCreatorIngestGuard.ts`)
 - **Privacy level**: Facts are tagged `normal` / `intimate` / `explicit`; explicit facts are only injected when adult mode is enabled
 - **Auto-retire**: Low-confidence or obsolete facts are automatically retired after a decay period
 - **User fact guard**: Certain fact types about the user are filtered by `userFactGuard.ts`

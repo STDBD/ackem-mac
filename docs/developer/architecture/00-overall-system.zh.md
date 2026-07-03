@@ -167,7 +167,7 @@ Step 4: 上下文组装
 context.ts → assembleChatContext()
   合并所有块成 system prompt + messages 数组：
     Tier A:   伴侣快照 (self.md + state.md)
-    Canon:    Ackem 人设、创造者记忆、陌生人守卫
+    Canon:    Ackem 人设、陌生人守卫
     psyche:   情绪/关系心理块 [心系统产出]
     Tier B:   检索到的记忆片段 [脑系统产出]
     扩展注入: 扩展 contextInjection [扩展系统产出]
@@ -287,9 +287,7 @@ src/main/
 │   └── policy/               #   主动/强度策略
 │
 ├── canon/                    # Ackem 本体人设
-│   ├── ackemCanon.ts         #   不可改写的人设
-│   ├── creatorMemory.ts      #   创造者记忆（不衰减）
-│   └── creatorMemorySeed.ts  #   起源种子
+│   └── ackemCanon.ts         #   不可改写的人设
 │
 ├── companion/                # 陪伴模式
 │   ├── proactiveScheduler.ts #   主动消息调度
