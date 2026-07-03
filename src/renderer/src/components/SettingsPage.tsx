@@ -889,11 +889,11 @@ export function SettingsPage(): JSX.Element {
                   {t('settings.adultModeDesc')}
                 </p>
                 <ul className="list-disc pl-5 space-y-2">
-                  <li>t('settings.adultModePoints').split(' / ')[0]</li>
-                  <li>t('settings.adultModePoints').split(' / ')[1]</li>
-                  <li>t('settings.adultModePoints').split(' / ')[2]</li>
-                  <li>t('settings.adultModePoints').split(' / ')[3]</li>
-                  <li>t('settings.adultModePoints').split(' / ')[4]</li>
+                  <li>{t('settings.adultModePoints').split(' / ')[0]}</li>
+                  <li>{t('settings.adultModePoints').split(' / ')[1]}</li>
+                  <li>{t('settings.adultModePoints').split(' / ')[2]}</li>
+                  <li>{t('settings.adultModePoints').split(' / ')[3]}</li>
+                  <li>{t('settings.adultModePoints').split(' / ')[4]}</li>
                 </ul>
                 <p className="text-xs text-ink-muted">
                   {t('settings.adultModeDisclaimer')}
