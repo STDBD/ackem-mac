@@ -36,12 +36,6 @@ export function extractFactDrafts(userMsg: string, _companionMsg?: string): Fact
   return drafts
 }
 
-export function hasUserFamilyLightHits(userMsg: string): boolean {
-  return extractFactDrafts(userMsg).some(
-    (d) => d.familyScope === 'user' || d.subcategory === 'FAMILY' || d.subject.includes('生日')
-  )
-}
-
 export function factDraftsToRows(drafts: FactDraft[]): import('./types').ExtractedFactRow[] {
   return drafts.map((d) => ({
     domain: d.domain,
